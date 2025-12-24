@@ -6,9 +6,9 @@ import {
   effect,
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { LocationsService } from '../shared/services/locations.service';
-import { Location, LOCATION_CATEGORIES } from '../shared/models/location.model';
-import { LocationDetailsComponent } from '../shared/components/location-details/location-details.component';
+import { LocationsService } from '../../shared/services/locations.service';
+import { Location, LOCATION_CATEGORIES } from '../../shared/models/location.model';
+import { LocationDetailsComponent } from '../location-details/location-details.component';
 
 @Component({
   selector: 'app-leaflet-map',

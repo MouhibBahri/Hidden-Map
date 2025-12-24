@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Location, LOCATION_CATEGORIES } from '../../models/location.model';
+import { Location, LOCATION_CATEGORIES } from '../../shared/models/location.model';
 
 @Component({
   selector: 'app-location-details',
