@@ -4,6 +4,10 @@ import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LocationsModule } from './locations/locations.module';
+import { UsersModule } from './users/users.module';
+import { FavoritesModule } from './favorites/favorites.module';
+import { RatingsModule } from './ratings/ratings.module';
+import { CommentsModule } from './comments/comments.module';
 import { PhotosService } from './locations/service/photos.service';
 
 @Module({
@@ -26,6 +30,10 @@ import { PhotosService } from './locations/service/photos.service';
       }),
     }),
     LocationsModule,
+    UsersModule,
+    FavoritesModule,
+    RatingsModule,
+    CommentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

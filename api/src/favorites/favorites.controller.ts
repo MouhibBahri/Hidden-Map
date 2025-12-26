@@ -1,12 +1,12 @@
-import { Controller, Post, Delete, Get, Param, Body } from '@nestjs/common';
+import { Controller, Post, Delete, Param, Body } from '@nestjs/common';
 import { FavoritesService } from './favorites.service';
 import { CreateFavoriteDto } from './dto/create-favorite.dto';
 
-@Controller('locations/:locationId/favorite')
+@Controller()
 export class FavoritesController {
   constructor(private readonly favoritesService: FavoritesService) {}
 
-  @Post()
+  @Post('locations/:locationId/favorite')
   addFavorite(
     @Param('locationId') locationId: string,
     @Body() createFavoriteDto: CreateFavoriteDto,
@@ -17,7 +17,7 @@ export class FavoritesController {
     });
   }
 
-  @Delete()
+  @Delete('locations/:locationId/favorite')
   removeFavorite(
     @Param('locationId') locationId: string,
     @Body() body: { userId: string },
@@ -25,12 +25,17 @@ export class FavoritesController {
     return this.favoritesService.remove(body.userId, locationId);
   }
 
-  @Get('check/:userId')
+  @Post('locations/:locationId/favorite/check')
   checkFavorite(
     @Param('locationId') locationId: string,
-    @Param('userId') userId: string,
+    @Body() body: { userId: string },
   ) {
-    return this.favoritesService.isFavorite(userId, locationId);
+    return this.favoritesService.isFavorite(body.userId, locationId);
+  }
+
+  @Post('favorites')
+  getUserFavorites(@Body() body: { userId: string }) {
+    return this.favoritesService.getFavoritesByUser(body.userId);
   }
 }
 

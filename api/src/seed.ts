@@ -2,6 +2,10 @@ import { DataSource } from 'typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Location } from '../src/locations/entities/location.entity';
 import { Photo } from '../src/locations/entities/photo.entity';
+import { User } from '../src/users/entities/user.entity';
+import { Comment } from '../src/comments/entities/comment.entity';
+import { Rating } from '../src/ratings/entities/rating.entity';
+import { Favorite } from '../src/favorites/entities/favorite.entity';
 import { NestFactory } from '@nestjs/core';
 
 const mockLocations = [
@@ -169,10 +173,47 @@ async function seed(configService: ConfigService) {
 
     const locationRepository = dataSource.getRepository(Location);
     const photoRepository = dataSource.getRepository(Photo);
+    const userRepository = dataSource.getRepository(User);
+    const commentRepository = dataSource.getRepository(Comment);
+    const ratingRepository = dataSource.getRepository(Rating);
+    const favoriteRepository = dataSource.getRepository(Favorite);
 
+    // Clear existing data in correct order (delete child records first)
+    await dataSource.createQueryBuilder().delete().from(Comment).execute();
+    await dataSource.createQueryBuilder().delete().from(Rating).execute();
+    await dataSource.createQueryBuilder().delete().from(Favorite).execute();
     await dataSource.createQueryBuilder().delete().from(Photo).execute();
     await dataSource.createQueryBuilder().delete().from(Location).execute();
     console.log('Cleared existing data');
+
+    // Create test user with specific UUID
+    const testUser = userRepository.create({
+      id: '00000000-0000-0000-0000-000000000001',
+      username: 'testuser',
+      email: 'test@example.com',
+      avatarUrl: 'https://i.pravatar.cc/150?img=1',
+      bio: 'Test user for development',
+    });
+    await userRepository.save(testUser);
+    console.log('✓ Created test user');
+
+    // Create additional test users
+    const user2 = userRepository.create({
+      username: 'explorer',
+      email: 'explorer@example.com',
+      avatarUrl: 'https://i.pravatar.cc/150?img=2',
+      bio: 'Love discovering hidden gems!',
+    });
+    await userRepository.save(user2);
+
+    const user3 = userRepository.create({
+      username: 'foodie',
+      email: 'foodie@example.com',
+      avatarUrl: 'https://i.pravatar.cc/150?img=3',
+      bio: 'Food enthusiast and cafe hopper',
+    });
+    await userRepository.save(user3);
+    console.log('✓ Created additional test users');
 
     for (const locationData of mockLocations) {
       const { photos, ...locationFields } = locationData;
@@ -195,6 +236,7 @@ async function seed(configService: ConfigService) {
 
     console.log('\nSeeding completed successfully!');
     console.log(`Added ${mockLocations.length} locations with photos`);
+    console.log('Added 3 test users');
   } catch (error) {
     console.error('Error during seeding:', error);
   } finally {

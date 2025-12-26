@@ -1,6 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { Location } from '../models/location.model';
+
+interface Favorite {
+  id: string;
+  location: Location;
+  createdAt: string;
+}
 
 @Injectable({
   providedIn: 'root',
@@ -23,7 +31,13 @@ export class FavoritesService {
   }
 
   isFavorite(locationId: string, userId: string): Observable<boolean> {
-    return this.http.get<boolean>(`${this.apiUrl}/locations/${locationId}/favorite/check/${userId}`);
+    return this.http.post<boolean>(`${this.apiUrl}/locations/${locationId}/favorite/check`, { userId });
+  }
+
+  getUserFavorites(userId: string): Observable<Location[]> {
+    return this.http.post<Favorite[]>(`${this.apiUrl}/favorites`, { userId }).pipe(
+      map(favorites => favorites.map(fav => fav.location))
+    );
   }
 }
 

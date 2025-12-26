@@ -7,7 +7,7 @@ import { FavoritesService } from '../../shared/services/favorites.service';
 import { Subject, takeUntil, catchError, of, forkJoin } from 'rxjs';
 
 // Mock current user ID - in a real app, this would come from auth service
-const CURRENT_USER_ID = '00000000-0000-0000-0000-000000000001';
+const CURRENT_USER_ID = '759df37d-7d4e-457d-989d-1d2fb4ad8476';
 
 @Component({
   selector: 'app-location-details',
