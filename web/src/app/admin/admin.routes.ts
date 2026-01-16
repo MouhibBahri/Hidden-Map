@@ -1,0 +1,11 @@
+import { Routes } from '@angular/router';
+import { PendingLocationsComponent } from './pages/pending-locations/pending-locations.component';
+import { AdminGuard } from './guards/admin.guard';
+
+export const ADMIN_ROUTES: Routes = [
+  {
+    path: 'pending-locations',
+    component: PendingLocationsComponent,
+    canActivate: [AdminGuard],
+  }
+];
