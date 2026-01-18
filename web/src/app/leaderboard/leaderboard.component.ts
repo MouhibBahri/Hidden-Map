@@ -1,4 +1,5 @@
 import { Component, inject, signal, effect } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { LeaderboardService } from './services/leaderboard.service';
 import { LeaderboardUser } from './models/leaderboard.model';
 import { AuthService } from '../auth/services/auth.service';
@@ -6,6 +7,7 @@ import { AuthService } from '../auth/services/auth.service';
 @Component({
   selector: 'app-leaderboard',
   standalone: true,
+  imports: [CommonModule],
   templateUrl: './leaderboard.component.html',
 })
 export class LeaderboardComponent {

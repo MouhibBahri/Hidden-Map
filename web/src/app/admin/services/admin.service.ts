@@ -14,16 +14,16 @@ export class AdminService {
     );
   }
 
-  approveLocation(id: number): Observable<void> {
+  approveLocation(id: string): Observable<void> {
     return this.http.post<void>(
-      API_ROUTES.admin.approveLocation(id.toString()),
+      API_ROUTES.admin.approveLocation(id),
       {}
     );
   }
 
-  rejectLocation(id: number): Observable<void> {
+  rejectLocation(id: string): Observable<void> {
     return this.http.post<void>(
-      API_ROUTES.admin.rejectLocation(id.toString()),
+      API_ROUTES.admin.rejectLocation(id),
       {}
     );
   }

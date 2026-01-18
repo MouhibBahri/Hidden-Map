@@ -29,13 +29,13 @@ export class PendingLocationsComponent {
     });
   }
 
-  approve(id: number) {
+  approve(id: string) {
     this.adminService.approveLocation(id).subscribe(() => {
       this.loadPendingLocations();
     });
   }
 
-  reject(id: number) {
+  reject(id: string) {
     this.adminService.rejectLocation(id).subscribe(() => {
       this.loadPendingLocations();
     });

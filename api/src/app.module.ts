@@ -11,6 +11,7 @@ import { PhotosService } from './locations/service/photos.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AdminModule } from './admin/admin.module';
+import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
@@ -41,6 +42,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     AuthModule,
     UsersModule,
     AdminModule,
+    LeaderboardModule,
   ],
   controllers: [AppController],
   providers: [
