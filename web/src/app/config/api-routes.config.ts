@@ -36,6 +36,9 @@ export const API_ROUTES = {
   },
 
   admin: {
+    base: `${API_BASE}/admin`,
+    dashboard: `${API_BASE}/admin/dashboard`,
+    dashboardStats: `${API_BASE}/admin/dashboard/stats`,
     pendingLocations: `${API_BASE}/admin/pending-locations`,
     approveLocation: (id: string) => `${API_BASE}/admin/approve-location/${id}`,
     rejectLocation: (id: string) => `${API_BASE}/admin/reject-location/${id}`,

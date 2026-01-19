@@ -10,9 +10,9 @@ export const routes: Routes = [
   { path: '', component: LeafletMapComponent },
   { path: 'submit', component: SubmitComponent },
   {
-  path: 'admin',
-  loadChildren: () =>
-    import('./admin/admin.routes').then(m => m.ADMIN_ROUTES),
+    path: 'admin',
+    loadChildren: () =>
+      import('./admin/admin.routes').then(m => m.ADMIN_ROUTES),
   },
   {
   path: 'leaderboard',
