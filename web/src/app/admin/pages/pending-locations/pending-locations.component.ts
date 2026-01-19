@@ -30,10 +30,8 @@ export class PendingLocationsComponent {
   }
 
   approve(id: string) {
-    console.log('Approve button clicked for location:', id);
     this.adminService.approveLocation(id).subscribe({
       next: () => {
-        console.log('Location approved successfully');
         this.loadPendingLocations();
       },
       error: (err) => {
@@ -43,10 +41,8 @@ export class PendingLocationsComponent {
   }
 
   reject(id: string) {
-    console.log('Reject button clicked for location:', id);
     this.adminService.rejectLocation(id).subscribe({
       next: () => {
-        console.log('Location rejected successfully');
         this.loadPendingLocations();
       },
       error: (err) => {

@@ -39,8 +39,6 @@ export class AdminService {
   }
 
   async approveLocation(id: string): Promise<Location> {
-    console.log(`Approving location with id: ${id}`);
-    
     const location = await this.locationRepository.findOne({
       where: { id },
       relations: ['submittedBy'],
@@ -50,15 +48,12 @@ export class AdminService {
       throw new Error(`Location with id ${id} not found`);
     }
     
-    console.log(`Location found: ${location.name}, submittedById: ${location.submittedById}`);
-    
     location.status = LocationStatus.APPROVED;
     const savedLocation = await this.locationRepository.save(location);
 
     // Award points to user
     if (location.submittedById) {
       const pointsAwarded = 10;
-      console.log(`Awarding ${pointsAwarded} points to user ${location.submittedById}`);
       
       await this.userRepository.increment(
         { id: location.submittedById },
@@ -67,7 +62,6 @@ export class AdminService {
       );
 
       // Notify user about approval
-      console.log(`Creating approval notification for user ${location.submittedById}`);
       await this.notificationsService.create(
         location.submittedById,
         NotificationType.LOCATION_APPROVED,
@@ -79,7 +73,6 @@ export class AdminService {
       );
 
       // Notify user about points
-      console.log(`Creating points notification for user ${location.submittedById}`);
       await this.notificationsService.create(
         location.submittedById,
         NotificationType.POINTS_AWARDED,
@@ -90,8 +83,6 @@ export class AdminService {
           points: pointsAwarded,
         },
       );
-    } else {
-      console.log('No submittedById found for this location');
     }
 
     return savedLocation;

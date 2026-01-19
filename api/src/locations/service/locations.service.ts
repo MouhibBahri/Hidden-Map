@@ -36,8 +36,6 @@ export class LocationsService {
     });
     const savedLocation = await this.locationRepository.save(location);
 
-    console.log(`Location created with submittedById: ${savedLocation.submittedById}`);
-
     // Notify all admins about new location submission
     const admins = await this.userRepository.find({
       where: { role: UserRole.ADMIN },

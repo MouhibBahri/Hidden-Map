@@ -12,14 +12,10 @@ export class NotificationsService {
   ) {}
 
   async findAllByUser(userId: string): Promise<NotificationResponseDto> {
-    console.log(`Fetching notifications for user: ${userId}`);
-    
     const notifications = await this.notificationRepository.find({
       where: { userId },
       order: { createdAt: 'DESC' },
     });
-
-    console.log(`Found ${notifications.length} notifications for user ${userId}`);
 
     const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -53,8 +49,6 @@ export class NotificationsService {
       points?: number;
     },
   ): Promise<Notification> {
-    console.log(`Creating notification for user ${userId}: type=${type}, message=${message}`);
-    
     const notification = this.notificationRepository.create({
       userId,
       type,
@@ -62,9 +56,6 @@ export class NotificationsService {
       metadata,
     });
 
-    const savedNotification = await this.notificationRepository.save(notification);
-    console.log(`Notification saved with id: ${savedNotification.id}`);
-    
-    return savedNotification;
+    return this.notificationRepository.save(notification);
   }
 }
