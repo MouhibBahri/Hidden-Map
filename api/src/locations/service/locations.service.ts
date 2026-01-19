@@ -29,9 +29,14 @@ export class LocationsService {
     });
   }
 
-  async create(locationData: CreateLocationDto): Promise<Location> {
-    const location = this.locationRepository.create(locationData);
+  async create(locationData: CreateLocationDto, userId: string): Promise<Location> {
+    const location = this.locationRepository.create({
+      ...locationData,
+      submittedById: userId,
+    });
     const savedLocation = await this.locationRepository.save(location);
+
+    console.log(`Location created with submittedById: ${savedLocation.submittedById}`);
 
     // Notify all admins about new location submission
     const admins = await this.userRepository.find({

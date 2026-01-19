@@ -30,14 +30,28 @@ export class PendingLocationsComponent {
   }
 
   approve(id: string) {
-    this.adminService.approveLocation(id).subscribe(() => {
-      this.loadPendingLocations();
+    console.log('Approve button clicked for location:', id);
+    this.adminService.approveLocation(id).subscribe({
+      next: () => {
+        console.log('Location approved successfully');
+        this.loadPendingLocations();
+      },
+      error: (err) => {
+        console.error('Error approving location:', err);
+      }
     });
   }
 
   reject(id: string) {
-    this.adminService.rejectLocation(id).subscribe(() => {
-      this.loadPendingLocations();
+    console.log('Reject button clicked for location:', id);
+    this.adminService.rejectLocation(id).subscribe({
+      next: () => {
+        console.log('Location rejected successfully');
+        this.loadPendingLocations();
+      },
+      error: (err) => {
+        console.error('Error rejecting location:', err);
+      }
     });
   }
 }

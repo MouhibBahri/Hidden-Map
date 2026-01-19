@@ -61,12 +61,20 @@ export class NotificationsComponent implements OnInit, OnDestroy {
       this.notificationsService.markAsRead(notification.id).subscribe({
         next: () => {
           // Navigate based on notification type
-          if (notification.type === 'location_approved' && notification.message.includes('submitted for review')) {
-            // Admin notification about new submission - go to admin page
-            this.router.navigate(['/admin/pending-locations']);
+          if (notification.type === 'location_approved') {
+            if (notification.message.includes('submitted for review')) {
+              // Admin notification about new submission - go to admin page
+              this.router.navigate(['/admin/pending-locations']);
+            } else {
+              // User notification about approved location - go to discover
+              this.router.navigate(['/']);
+            }
+          } else if (notification.type === 'points_awarded') {
+            // Points notification - go to leaderboard
+            this.router.navigate(['/leaderboard']);
           } else if (notification.metadata?.locationId) {
-            // User notification about their location - go to discover
-            this.router.navigate(['/discover', notification.metadata.locationId]);
+            // Other location-related notifications - go to discover
+            this.router.navigate(['/']);
           }
         },
         error: (err) => console.error('Failed to mark as read', err)
