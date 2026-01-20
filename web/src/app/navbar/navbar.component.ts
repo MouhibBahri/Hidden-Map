@@ -23,6 +23,7 @@ export class NavbarComponent {
   private toastr = inject(ToastrService);
 
   isMenuOpen = signal(false);
+  currentUserProfile$ = this.authService.getProfile();
 
   toggleMenu() {
     this.isMenuOpen.set(!this.isMenuOpen());
