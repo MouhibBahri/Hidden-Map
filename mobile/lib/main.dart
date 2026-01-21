@@ -7,6 +7,7 @@ import 'screens/map_screen.dart';
 import 'screens/submit_screen.dart';
 import 'screens/leaderboard_screen.dart';
 import 'screens/admin_screen.dart';
+import 'screens/dashboard_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/profile_screen.dart';
@@ -62,6 +63,10 @@ final _router = GoRouter(
       ],
     ),
     GoRoute(path: '/admin', builder: (context, state) => const AdminScreen()),
+    GoRoute(
+      path: '/dashboard',
+      builder: (context, state) => const DashboardScreen(),
+    ),
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(
       path: '/register',
@@ -109,6 +114,13 @@ class ScaffoldWithNavBar extends StatelessWidget {
           ],
         ),
         actions: [
+          // Dashboard button - only show for admin users
+          if (authProvider.isAdmin)
+            IconButton(
+              icon: const Icon(Icons.dashboard),
+              onPressed: () => context.push('/dashboard'),
+              tooltip: 'Dashboard',
+            ),
           // Admin button - only show for admin users
           if (authProvider.isAdmin)
             IconButton(
