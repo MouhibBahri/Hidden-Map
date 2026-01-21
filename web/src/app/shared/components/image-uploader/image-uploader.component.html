@@ -6,7 +6,7 @@
       <div class="flex flex-wrap gap-4">
         @for (img of images(); track img.id) {
           <div class="relative w-32 h-32 group">
-            <img [src]="img.fullUrl" class="w-full h-full object-cover rounded-lg shadow-sm border border-gray-200">
+            <img [src]="img.url | apiUrl" class="w-full h-full object-cover rounded-lg shadow-sm border border-gray-200">
             
             <button 
               type="button"
