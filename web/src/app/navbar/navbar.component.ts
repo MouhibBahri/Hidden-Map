@@ -31,7 +31,7 @@ export class NavbarComponent implements OnInit {
   // Expose notification signals to template
   unreadCount = this.notificationsService.unreadCount;
   hasUnread = this.notificationsService.hasUnread;
-
+  currentUserProfile$ = this.authService.getProfile();
   ngOnInit() {
     if (this.authService.isAuthenticated()) {
       this.authService.fetchAndStoreProfile().subscribe({
