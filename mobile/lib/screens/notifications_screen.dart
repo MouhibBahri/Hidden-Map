@@ -78,8 +78,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _navigateByType(String type, Map<String, dynamic>? metadata) {
+    final authProvider = context.read<AuthProvider>();
+    
     if (type == 'location_approved') {
-      context.go('/');
+      // Check if admin is being notified about a new submission or user about approval
+      if (authProvider.isAdmin && metadata?['locationId'] != null) {
+        // Admin notification about new location - go to pending locations
+        context.go('/admin');
+      } else {
+        // User notification about their approved location - go to map
+        context.go('/');
+      }
     } else if (type == 'points_awarded') {
       context.go('/leaderboard');
     }
@@ -105,7 +114,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🔔 Notifications'),
+        title: const Text('Notifications'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           if (_notificationResponse != null && _notificationResponse!.unreadCount > 0)
