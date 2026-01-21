@@ -13,6 +13,7 @@ import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/edit_profile_screen.dart';
+import 'screens/favorites_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -78,6 +79,10 @@ final _router = GoRouter(
       path: '/notifications',
       builder: (context, state) => const NotificationsScreen(),
     ),
+    GoRoute(
+      path: '/favorites',
+      builder: (context, state) => const FavoritesScreen(),
+    ),
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(
       path: '/register',
@@ -127,6 +132,13 @@ class ScaffoldWithNavBar extends StatelessWidget {
           ],
         ),
         actions: [
+          // Favorites button
+          if (authProvider.isAuthenticated)
+            IconButton(
+              icon: const Icon(Icons.favorite),
+              onPressed: () => context.push('/favorites'),
+              tooltip: 'Favorites',
+            ),
           // Notifications button
           if (authProvider.isAuthenticated)
             IconButton(
