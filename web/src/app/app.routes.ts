@@ -3,6 +3,7 @@ import { SubmitComponent } from './submit/submit.component';
 import { LeafletMapComponent } from './discover/leaflet-map/leaflet-map.component';
 import { FavoritesComponent } from './favorites/favorites.component';
 import { authRoutes } from './auth/routes';
+import { ProfileComponent } from './profile/profile.component';
 import { NotificationsComponent } from './notifications/notifications.component';
 import { AuthGuard } from './auth/guards/auth.guard';
 
@@ -27,5 +28,6 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   { path: 'favorites', component: FavoritesComponent },
+  { path: 'profile/:id', component: ProfileComponent },
   ...authRoutes,
 ];

@@ -13,8 +13,10 @@ import { UsersModule } from './users/users.module';
 import { AdminModule } from './admin/admin.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { FollowersModule } from './followers/followers.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { User } from './users/entities/user.entity';
 
 @Module({
   imports: [
@@ -37,6 +39,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     }),
     LocationsModule,
     UsersModule,
+    FollowersModule,
     FavoritesModule,
     RatingsModule,
     CommentsModule,
