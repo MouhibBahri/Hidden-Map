@@ -1,15 +1,17 @@
 import { Component, EventEmitter, Input, Output, OnInit, OnChanges, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Location, Comment, Rating, LOCATION_CATEGORIES } from '../../shared/models/location.model';
+import { RouterLink } from '@angular/router';
+import { Location, Comment, Rating, LOCATION_CATEGORIES, User } from '../../shared/models/location.model';
 import { RatingsService } from '../../shared/services/ratings.service';
 import { CommentsService } from '../../shared/services/comments.service';
 import { FavoritesService } from '../../shared/services/favorites.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { Subject, takeUntil, catchError, of, forkJoin } from 'rxjs';
+import { UsersService } from '../../shared/services/users.service';
 
 @Component({
   selector: 'app-location-details',
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './location-details.component.html',
   styleUrl: './location-details.component.css',
 })
@@ -18,12 +20,14 @@ export class LocationDetailsComponent implements OnInit, OnChanges, OnDestroy {
   @Input() isOpen = false;
   @Output() close = new EventEmitter<void>();
   @Output() favoriteChanged = new EventEmitter<{ locationId: string; isFavorite: boolean }>();
+  submittingUser: User | null = null;
 
   private ratingsService = inject(RatingsService);
   private commentsService = inject(CommentsService);
   private favoritesService = inject(FavoritesService);
   private authService = inject(AuthService);
   private destroy$ = new Subject<void>();
+  private userservice = inject(UsersService);
 
   // Signals for reactive state
   currentPhotoIndex = signal(0);
@@ -96,10 +100,18 @@ export class LocationDetailsComponent implements OnInit, OnChanges, OnDestroy {
             })
           )
         : of(false)
+      ,
+      submittingUser: this.userservice.getUser(this.location.submittedById || '').pipe(
+        catchError(err => {
+          console.error('Error loading submitting user:', err);
+          return of(null);
+        })
+      )
     })
     .pipe(takeUntil(this.destroy$))
     .subscribe({
-      next: ({ ratings, comments, isFavorite }) => {
+      next: ({ ratings, comments, isFavorite, submittingUser }) => {
+        this.submittingUser = submittingUser;
         this.ratings.set(ratings);
         const userId = this.currentUserId();
         const userRatingObj = userId ? ratings.find(r => r.user.id === userId) : null;
