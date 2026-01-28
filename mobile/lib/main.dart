@@ -7,10 +7,13 @@ import 'screens/map_screen.dart';
 import 'screens/submit_screen.dart';
 import 'screens/leaderboard_screen.dart';
 import 'screens/admin_screen.dart';
+import 'screens/dashboard_screen.dart';
+import 'screens/notifications_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/edit_profile_screen.dart';
+import 'screens/favorites_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -24,7 +27,13 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => LocationsProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, LocationsProvider>(
+          create: (_) => LocationsProvider(),
+          update: (_, authProvider, locationsProvider) {
+            locationsProvider!.setToken(authProvider.token);
+            return locationsProvider;
+          },
+        ),
       ],
       child: MaterialApp.router(
         title: 'HiddenMap',
@@ -52,6 +61,10 @@ final _router = GoRouter(
           builder: (context, state) => const SubmitScreen(),
         ),
         GoRoute(
+          path: '/dashboard',
+          builder: (context, state) => const DashboardScreen(),
+        ),
+        GoRoute(
           path: '/leaderboard',
           builder: (context, state) => const LeaderboardScreen(),
         ),
@@ -62,6 +75,14 @@ final _router = GoRouter(
       ],
     ),
     GoRoute(path: '/admin', builder: (context, state) => const AdminScreen()),
+    GoRoute(
+      path: '/notifications',
+      builder: (context, state) => const NotificationsScreen(),
+    ),
+    GoRoute(
+      path: '/favorites',
+      builder: (context, state) => const FavoritesScreen(),
+    ),
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(
       path: '/register',
@@ -85,7 +106,9 @@ class ScaffoldWithNavBar extends StatelessWidget {
     final authProvider = context.watch<AuthProvider>();
 
     int currentIndex = 0;
-    if (currentPath == '/submit') {
+    if (authProvider.isAdmin && currentPath == '/dashboard') {
+      currentIndex = 1;
+    } else if (currentPath == '/submit') {
       currentIndex = 1;
     } else if (currentPath == '/leaderboard') {
       currentIndex = 2;
@@ -109,12 +132,26 @@ class ScaffoldWithNavBar extends StatelessWidget {
           ],
         ),
         actions: [
+          // Favorites button
+          if (authProvider.isAuthenticated)
+            IconButton(
+              icon: const Icon(Icons.favorite),
+              onPressed: () => context.push('/favorites'),
+              tooltip: 'Favorites',
+            ),
+          // Notifications button
+          if (authProvider.isAuthenticated)
+            IconButton(
+              icon: const Icon(Icons.notifications),
+              onPressed: () => context.push('/notifications'),
+              tooltip: 'Notifications',
+            ),
           // Admin button - only show for admin users
           if (authProvider.isAdmin)
             IconButton(
               icon: const Icon(Icons.admin_panel_settings),
               onPressed: () => context.push('/admin'),
-              tooltip: 'Admin Panel',
+              tooltip: 'Pending Locations',
             ),
         ],
       ),
@@ -125,7 +162,11 @@ class ScaffoldWithNavBar extends StatelessWidget {
           if (index == 0) {
             context.go('/');
           } else if (index == 1) {
-            context.go('/submit');
+            if (authProvider.isAdmin) {
+              context.go('/dashboard');
+            } else {
+              context.go('/submit');
+            }
           } else if (index == 2) {
             context.go('/leaderboard');
           } else if (index == 3) {
@@ -142,9 +183,9 @@ class ScaffoldWithNavBar extends StatelessWidget {
             icon: Icon(Icons.explore),
             label: 'Discover',
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.add_location),
-            label: 'Submit',
+          BottomNavigationBarItem(
+            icon: Icon(authProvider.isAdmin ? Icons.dashboard : Icons.add_location),
+            label: authProvider.isAdmin ? 'Dashboard' : 'Submit',
           ),
           const BottomNavigationBarItem(
             icon: Icon(Icons.leaderboard),
