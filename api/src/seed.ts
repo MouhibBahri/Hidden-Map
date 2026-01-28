@@ -21,6 +21,7 @@ const mockLocations = [
     longitude: 10.1756,
     address: 'Rue des Teinturiers',
     city: 'Tunis',
+    submittedById: '00000000-0000-0000-0000-000000000001',
     photos: [],
   },
   {
@@ -32,6 +33,7 @@ const mockLocations = [
     longitude: 10.1839,
     address: 'Rue de Rome',
     city: 'Tunis',
+    submittedById: '00000000-0000-0000-0000-000000000001',
     photos: [],
   },
   {
@@ -43,6 +45,7 @@ const mockLocations = [
     longitude: 10.1753,
     address: 'Montfleury',
     city: 'Tunis',
+    submittedById: '00000000-0000-0000-0000-000000000001',
     photos: [],
   },
   {
@@ -65,6 +68,7 @@ const mockLocations = [
     longitude: 10.1878,
     address: 'Rue Sidi Hassine',
     city: 'Tunis',
+    submittedById: '00000000-0000-0000-0000-000000000001',
     photos: [],
   },
   {
@@ -76,7 +80,10 @@ const mockLocations = [
     longitude: 10.1799,
     address: 'Rue Jamaa el Zitouna',
     city: 'Tunis',
+
+    submittedById: '00000000-0000-0000-0000-000000000001',    
     photos: [],
+
   },
   {
     name: 'La Goulette Seaside Walk',
@@ -87,6 +94,7 @@ const mockLocations = [
     longitude: 10.3152,
     address: 'Waterfront',
     city: 'La Goulette',
+    submittedById: '00000000-0000-0000-0000-000000000001',
     photos: [],
   },
   {
@@ -98,6 +106,7 @@ const mockLocations = [
     longitude: 10.3553,
     address: 'Main Avenue',
     city: 'Sidi Bou Said',
+    submittedById: '00000000-0000-0000-0000-000000000001',
     photos: [],
   },
 ];
