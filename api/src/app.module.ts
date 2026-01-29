@@ -7,7 +7,6 @@ import { LocationsModule } from './locations/locations.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { RatingsModule } from './ratings/ratings.module';
 import { CommentsModule } from './comments/comments.module';
-import { PhotosService } from './locations/service/photos.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AdminModule } from './admin/admin.module';
@@ -16,6 +15,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { FollowersModule } from './followers/followers.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { FileModule } from './file/file.module';
 import { User } from './users/entities/user.entity';
 
 @Module({
@@ -45,6 +45,7 @@ import { User } from './users/entities/user.entity';
     CommentsModule,
     AuthModule,
     UsersModule,
+    FileModule,
     AdminModule,
     LeaderboardModule,
     NotificationsModule,

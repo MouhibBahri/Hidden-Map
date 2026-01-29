@@ -1,20 +1,25 @@
-import { Component, EventEmitter, Input, Output, OnInit, OnChanges, OnDestroy, inject, signal, effect, runInInjectionContext, Injector } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit, OnChanges, OnDestroy, inject, signal, effect, CUSTOM_ELEMENTS_SCHEMA, runInInjectionContext, Injector } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Location, Comment, Rating, LOCATION_CATEGORIES } from '../../shared/models/location.model';
 import { RatingsService } from '../../shared/services/ratings.service';
 import { CommentsService } from '../../shared/services/comments.service';
 import { FavoritesService } from '../../shared/services/favorites.service';
 import { AuthService } from '../../auth/services/auth.service';
-import { Subject, takeUntil, catchError, of } from 'rxjs';
+import { Subject, takeUntil, catchError, of, forkJoin } from 'rxjs';
+import { ApiUrlPipe } from '../../shared/pipes/api-url.pipe';
+
 import { UsersService } from '../../shared/services/users.service';
 import { User } from '../../shared/models/location.model';
 import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-location-details',
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, ApiUrlPipe],
+
   templateUrl: './location-details.component.html',
   styleUrl: './location-details.component.css',
+    schemas: [CUSTOM_ELEMENTS_SCHEMA],
+
 })
 export class LocationDetailsComponent implements OnInit, OnChanges, OnDestroy {
   @Input() location: Location | null = null;
@@ -112,22 +117,6 @@ export class LocationDetailsComponent implements OnInit, OnChanges, OnDestroy {
     return sum / ratingsArray.length;
   }
 
-  previousPhoto() {
-    if (!this.location?.photos) return;
-    const current = this.currentPhotoIndex();
-    this.currentPhotoIndex.set(
-      current === 0 ? this.location.photos.length - 1 : current - 1
-    );
-  }
-
-  nextPhoto() {
-    if (!this.location?.photos) return;
-    const current = this.currentPhotoIndex();
-    this.currentPhotoIndex.set(
-      current === this.location.photos.length - 1 ? 0 : current + 1
-    );
-  }
-
   rateLocation(rating: number) {
     if (!this.location || this.ratingsService.ratingsResource.isLoading() || !this.authService.isAuthenticated()) return;
 
@@ -174,7 +163,6 @@ export class LocationDetailsComponent implements OnInit, OnChanges, OnDestroy {
 
   toggleFavorite() {
     if (!this.location || this.isTogglingFavorite() || !this.authService.isAuthenticated()) return;
-
     const locationId = this.location.id;
     const isFav = this.favoritesService.isFavoriteResource.value() || false;
     this.isTogglingFavorite.set(true);
