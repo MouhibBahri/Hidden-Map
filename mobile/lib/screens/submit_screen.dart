@@ -25,13 +25,13 @@ class _SubmitScreenState extends State<SubmitScreen> {
   final _longitudeController = TextEditingController();
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
-  final _photoUrlController = TextEditingController();
-  final _photoCaptionController = TextEditingController();
   final List<XFile> _selectedImages = [];
+  final List<MediaFile> _uploadedFiles = [];
   final ImagePicker _picker = ImagePicker();
 
   LocationCategory _selectedCategory = LocationCategory.other;
   bool _isSubmitting = false;
+  bool _isUploadingImages = false;
   bool _submitted = false;
 
   @override
@@ -42,8 +42,6 @@ class _SubmitScreenState extends State<SubmitScreen> {
     _longitudeController.dispose();
     _addressController.dispose();
     _cityController.dispose();
-    _photoUrlController.dispose();
-    _photoCaptionController.dispose();
     super.dispose();
   }
 
@@ -51,18 +49,74 @@ class _SubmitScreenState extends State<SubmitScreen> {
     final List<XFile> picked = await _picker.pickMultiImage();
     if (picked.isEmpty) return;
     setState(() => _selectedImages.addAll(picked));
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (!authProvider.isAuthenticated) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please login to upload photos'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      setState(() => _selectedImages.removeRange(_selectedImages.length - picked.length, _selectedImages.length));
+      return;
+    }
+
+    setState(() => _isUploadingImages = true);
+    final fileService = FileService(token: authProvider.token);
+
+    try {
+      for (final file in picked) {
+        final mediaFile = await fileService.uploadFile(file);
+        if (mounted) {
+          setState(() => _uploadedFiles.add(mediaFile));
+        }
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Photos uploaded successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload photos: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      // Remove the selected images if upload fails
+      setState(() {
+        for (final file in picked) {
+          _selectedImages.remove(file);
+        }
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingImages = false);
+      }
+    }
   }
 
   void _removeImage(int index) {
-    setState(() => _selectedImages.removeAt(index));
+    setState(() {
+      _selectedImages.removeAt(index);
+      _uploadedFiles.removeAt(index);
+    });
   }
 
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedImages.isEmpty) {
+    if (_uploadedFiles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one image')),
+        const SnackBar(content: Text('Please upload at least one image')),
       );
       return;
     }
@@ -79,15 +133,9 @@ class _SubmitScreenState extends State<SubmitScreen> {
       return;
     }
 
-    final fileService = FileService(token: authProvider.token);
     setState(() => _isSubmitting = true);
 
     try {
-      final List<MediaFile> uploadedFiles = [];
-      for (final file in _selectedImages) {
-        final mediaFile = await fileService.uploadFile(file);
-        uploadedFiles.add(mediaFile);
-      }
       final location = Location(
         id: '', // Will be set by backend
         name: _nameController.text,
@@ -97,7 +145,7 @@ class _SubmitScreenState extends State<SubmitScreen> {
         longitude: double.parse(_longitudeController.text),
         address: _addressController.text,
         city: _cityController.text,
-        photos: uploadedFiles,
+        photos: _uploadedFiles,
         submittedById: authProvider.currentUser!.id,
       );
 
@@ -127,10 +175,9 @@ class _SubmitScreenState extends State<SubmitScreen> {
           _longitudeController.clear();
           _addressController.clear();
           _cityController.clear();
-          _photoUrlController.clear();
-          _photoCaptionController.clear();
           _selectedCategory = LocationCategory.other;
           _selectedImages.clear();
+          _uploadedFiles.clear();
         }
       });
     } catch (e) {
@@ -307,7 +354,7 @@ class _SubmitScreenState extends State<SubmitScreen> {
                 ),
                 child: Column(
                   children: [
-                    if (_selectedImages.isNotEmpty)
+                    if (_uploadedFiles.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.all(8),
                         child: Column(
@@ -317,7 +364,7 @@ class _SubmitScreenState extends State<SubmitScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  '${_selectedImages.length} photo(s) selected',
+                                  '${_uploadedFiles.length} photo(s) uploaded',
                                   style: Theme.of(context).textTheme.titleSmall,
                                 ),
                                 TextButton.icon(
@@ -330,6 +377,23 @@ class _SubmitScreenState extends State<SubmitScreen> {
                                 ),
                               ],
                             ),
+                            if (_isUploadingImages)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Row(
+                                  children: [
+                                    const SizedBox(
+                                      height: 16,
+                                      width: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text('Uploading photos...'),
+                                  ],
+                                ),
+                              ),
                             const SizedBox(height: 8),
                             SizedBox(
                               height: 120,
@@ -387,6 +451,21 @@ class _SubmitScreenState extends State<SubmitScreen> {
                           ],
                         ),
                       )
+                    else if (_isUploadingImages)
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            const SizedBox(
+                              height: 40,
+                              width: 40,
+                              child: CircularProgressIndicator(),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text('Uploading photos...'),
+                          ],
+                        ),
+                      )
                     else
                       ListTile(
                         leading: const Icon(
@@ -405,12 +484,6 @@ class _SubmitScreenState extends State<SubmitScreen> {
               ),
               const SizedBox(height: 16),
               const SizedBox(height: 16),
-              _buildTextField(
-                controller: _photoCaptionController,
-                label: 'Photo Caption (Optional)',
-                icon: Icons.text_fields,
-              ),
-              const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _isSubmitting ? null : _submitForm,
                 style: ElevatedButton.styleFrom(
