@@ -37,6 +37,18 @@ export class LocationsService {
       .getMany();
   }
 
+  search(query: string): Promise<Location[]> {
+    const searchTerm = `%${query}%`;
+    return this.locationRepository
+      .createQueryBuilder('location')
+      .where('location.name ILIKE :query', { query: searchTerm })
+      .orWhere('location.description ILIKE :query', { query: searchTerm })
+      .orWhere('location.address ILIKE :query', { query: searchTerm })
+      .orWhere('location.city ILIKE :query', { query: searchTerm })
+      .leftJoinAndSelect('location.photos', 'photos')
+      .getMany();
+  }
+
   findOne(id: string): Promise<Location | null> {
     return this.locationRepository.findOne({
       where: { id },

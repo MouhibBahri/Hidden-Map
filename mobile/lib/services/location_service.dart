@@ -55,6 +55,21 @@ class LocationService {
     }
   }
 
+  Future<List<Location>> searchLocations(String query) async {
+    if (query.isEmpty) return [];
+    try {
+      final response = await _dio.get(
+        '${ApiConstants.locationsEndpoint}/search/$query',
+      );
+      final List<dynamic> data = response.data as List<dynamic>;
+      return data
+          .map((json) => Location.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw Exception('Failed to search locations: ${e.message}');
+    }
+  }
+
   Future<Location> createLocation(Location location) async {
     try {
       final response = await _dio.post(

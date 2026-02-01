@@ -77,6 +77,17 @@ export class LocationsController {
     return this.locationsService.findOne(id);
   }
 
+  @Public()
+  @ApiOperation({ summary: 'Search locations by query' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns locations matching the search query',
+  })
+  @Get('search/:query')
+  searchLocations(@Param('query') query: string) {
+    return this.locationsService.search(query);
+  }
+
   @ApiOperation({ summary: 'Create new location' })
   @ApiResponse({ status: 201, description: 'Location created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
