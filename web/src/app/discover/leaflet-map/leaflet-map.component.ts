@@ -9,9 +9,13 @@ import {
   NgZone,
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { toSignal, toObservable, rxResource } from '@angular/core/rxjs-interop';
+import { debounceTime, map } from 'rxjs/operators';
 import { LocationsService } from '../../shared/services/locations.service';
 import { Location, LOCATION_CATEGORIES } from '../../shared/models/location.model';
 import { LocationDetailsComponent } from '../location-details/location-details.component';
+import { query } from 'express';
 
 interface Bounds {
   minLat: number;
@@ -22,11 +26,12 @@ interface Bounds {
 
 @Component({
   selector: 'app-leaflet-map',
-  imports: [CommonModule, LocationDetailsComponent],
+  imports: [CommonModule, LocationDetailsComponent, FormsModule],
   templateUrl: './leaflet-map.component.html',
   styleUrl: './leaflet-map.component.css',
 })
 export class LeafletMapComponent implements AfterViewInit {
+  LOCATION_CATEGORIES = LOCATION_CATEGORIES;
   private platformId = inject(PLATFORM_ID);
   private locationsService = inject(LocationsService);
   private ngZone = inject(NgZone);
@@ -42,8 +47,18 @@ export class LeafletMapComponent implements AfterViewInit {
   private isLoadingViewport = signal(false);
   private viewportBounds = signal<Bounds | null>(null);
   private selectedCategory = signal<string | null>(null);
-  private searchQuery = signal<string>('');
 
+  
+  searchQuery = signal<string>('');
+  debouncedSearch = toSignal(
+    toObservable(this.searchQuery).pipe(debounceTime(500)),
+    { initialValue: '' }
+  );
+
+  searchResults = this.locationsService.searchLocations(
+    this.debouncedSearch,
+    this.selectedCategory
+  );
   // Grid-cell coverage tracking
   private cellSize = 0.05; // degrees (~5km)
   private loadedCells = signal<Set<string>>(new Set());
@@ -259,7 +274,7 @@ export class LeafletMapComponent implements AfterViewInit {
           const categoryInfo =
             LOCATION_CATEGORIES[
               location.category.toLowerCase() as keyof typeof LOCATION_CATEGORIES
-            ] || LOCATION_CATEGORIES.other;
+            ] || LOCATION_CATEGORIES['other'];
 
           // Create custom icon
           const markerIcon = L.divIcon({
@@ -331,5 +346,21 @@ export class LeafletMapComponent implements AfterViewInit {
 
   setSearchQuery(query: string) {
     this.searchQuery.set(query);
+  }
+
+  onSearchInput(value: string) {
+    this.searchQuery.set(value);
+  }
+
+  onSearchResultClick(location: Location) {
+    this._mapController?.setView([location.latitude, location.longitude], 16);
+    this.openLocationDetails(location);
+    this.searchQuery.set(''); // Clear search
+  }
+
+  private _mapController: any;
+
+  ngAfterMapInit() {
+    this._mapController = this.map;
   }
 }

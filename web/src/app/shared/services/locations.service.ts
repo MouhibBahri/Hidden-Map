@@ -1,5 +1,5 @@
-import { Injectable, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable, Signal, inject, signal } from '@angular/core';
+import { HttpClient, httpResource, HttpResourceRef } from '@angular/common/http';
 import { Location } from '../models/location.model';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { retry, catchError } from 'rxjs/operators';
@@ -74,25 +74,23 @@ export class LocationsService {
   }
 
   searchLocations(
-    query: string,
-    category?: string
-  ): Observable<Location[]> {
-    const params: any = { query };
-    if (category) {
-      params.category = category;
-    }
-    return this.http
-      .get<Location[]>(`${this.apiUrl}/search`, { params })
-      .pipe(
-        retry({
-          count: 3,
-          delay: 1000,
-        }),
-        catchError((error) => {
-          console.error('Failed to search locations:', error);
-          return of([]);
-        })
-      );
+    query: Signal<string>, 
+    category: Signal<string | null>
+  ): HttpResourceRef<Location[] | undefined> {
+    return httpResource<Location[]>(() => {
+      const q = query();
+      const cat = category();
+
+      const params: Record<string, string> = { query: q };
+      if (cat ) {
+        params['category'] = cat;
+      }
+
+      return {
+        url: `${API_ROUTES.locations.search}`,
+        params: params,
+      };
+    });
   }
 
   constructor() {}
