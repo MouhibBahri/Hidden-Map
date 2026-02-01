@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Location } from '../entities/location.entity';
 import { User, UserRole } from '../../users/entities/user.entity';
-import { Repository } from 'typeorm';
+import { Repository, Brackets } from 'typeorm';
 import { CreateLocationDto } from '../dto/create-location.dto';
 import { UpdateLocationDto } from '../dto/update-location.dto';
 import { NotificationsService } from '../../notifications/notifications.service';
@@ -21,6 +21,42 @@ export class LocationsService {
 
   findAll(): Promise<Location[]> {
     return this.locationRepository.find({ relations: ['photos'] });
+  }
+
+  findByBounds(
+    minLat: number,
+    maxLat: number,
+    minLng: number,
+    maxLng: number,
+  ): Promise<Location[]> {
+    return this.locationRepository
+      .createQueryBuilder('location')
+      .where('location.latitude BETWEEN :minLat AND :maxLat', { minLat, maxLat })
+      .andWhere('location.longitude BETWEEN :minLng AND :maxLng', { minLng, maxLng })
+      .leftJoinAndSelect('location.photos', 'photos')
+      .getMany();
+  }
+
+  search(query: string, category?: string): Promise<Location[]> {
+    const searchTerm = `%${query}%`;
+    const qb = this.locationRepository
+      .createQueryBuilder('location')
+      .leftJoinAndSelect('location.photos', 'photos')
+      .where(
+        new Brackets((qbWhere) => {
+          qbWhere
+            .where('location.name ILIKE :query', { query: searchTerm })
+            .orWhere('location.description ILIKE :query', { query: searchTerm })
+            .orWhere('location.address ILIKE :query', { query: searchTerm })
+            .orWhere('location.city ILIKE :query', { query: searchTerm });
+        }),
+      );
+
+    if (category) {
+      qb.andWhere('location.category = :category', { category });
+    }
+
+    return qb.getMany();
   }
 
   findOne(id: string): Promise<Location | null> {
