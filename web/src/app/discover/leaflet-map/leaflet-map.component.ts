@@ -343,9 +343,7 @@ export class LeafletMapComponent implements AfterViewInit {
 
   @HostListener('document:click', ['$event'])
   onClick(event: MouseEvent) {
-    console.log("cliiickkkk", this.searchContainer);
     if (this.searchContainer && !this.searchContainer.nativeElement.contains(event.target)) {
-      console.log("cliiickkkk outside")
       this.showDropdown.set(false);
     }
   }
@@ -364,7 +362,10 @@ export class LeafletMapComponent implements AfterViewInit {
         duration: 1.5,
       });
     }
-    this.openLocationDetails(location);
-    this.searchQuery.set(''); // Clear search
+
+    setTimeout(() => {
+      this.openLocationDetails(location);
+    }, 1500);
+    this.searchQuery.set(''); 
   }
 }
