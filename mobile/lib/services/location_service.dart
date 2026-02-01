@@ -55,11 +55,15 @@ class LocationService {
     }
   }
 
-  Future<List<Location>> searchLocations(String query) async {
+  Future<List<Location>> searchLocations(String query, {String? category}) async {
     if (query.isEmpty) return [];
     try {
       final response = await _dio.get(
-        '${ApiConstants.locationsEndpoint}/search/$query',
+        '${ApiConstants.locationsEndpoint}/search',
+        queryParameters: {
+          'query': query,
+          if (category != null) 'category': category,
+        },
       );
       final List<dynamic> data = response.data as List<dynamic>;
       return data

@@ -65,6 +65,17 @@ export class LocationsController {
   }
 
   @Public()
+  @ApiOperation({ summary: 'Search locations by query' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns locations matching the search query',
+  })
+  @Get('search')
+  searchLocations(@Query('query') query: string, @Query('category') category?: string) {
+    return this.locationsService.search(query, category);
+  }
+
+  @Public()
   @ApiOperation({ summary: 'Get location by ID' })
   @ApiParam({ name: 'id', description: 'Location UUID' })
   @ApiResponse({
@@ -75,17 +86,6 @@ export class LocationsController {
   @Get(':id')
   getLocationById(@Param('id') id: string) {
     return this.locationsService.findOne(id);
-  }
-
-  @Public()
-  @ApiOperation({ summary: 'Search locations by query' })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns locations matching the search query',
-  })
-  @Get('search/:query')
-  searchLocations(@Param('query') query: string) {
-    return this.locationsService.search(query);
   }
 
   @ApiOperation({ summary: 'Create new location' })

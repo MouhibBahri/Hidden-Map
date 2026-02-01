@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Location } from '../entities/location.entity';
 import { User, UserRole } from '../../users/entities/user.entity';
-import { Repository } from 'typeorm';
+import { Repository, Brackets } from 'typeorm';
 import { CreateLocationDto } from '../dto/create-location.dto';
 import { UpdateLocationDto } from '../dto/update-location.dto';
 import { NotificationsService } from '../../notifications/notifications.service';
@@ -37,16 +37,26 @@ export class LocationsService {
       .getMany();
   }
 
-  search(query: string): Promise<Location[]> {
+  search(query: string, category?: string): Promise<Location[]> {
     const searchTerm = `%${query}%`;
-    return this.locationRepository
+    const qb = this.locationRepository
       .createQueryBuilder('location')
-      .where('location.name ILIKE :query', { query: searchTerm })
-      .orWhere('location.description ILIKE :query', { query: searchTerm })
-      .orWhere('location.address ILIKE :query', { query: searchTerm })
-      .orWhere('location.city ILIKE :query', { query: searchTerm })
       .leftJoinAndSelect('location.photos', 'photos')
-      .getMany();
+      .where(
+        new Brackets((qbWhere) => {
+          qbWhere
+            .where('location.name ILIKE :query', { query: searchTerm })
+            .orWhere('location.description ILIKE :query', { query: searchTerm })
+            .orWhere('location.address ILIKE :query', { query: searchTerm })
+            .orWhere('location.city ILIKE :query', { query: searchTerm });
+        }),
+      );
+
+    if (category) {
+      qb.andWhere('location.category = :category', { category });
+    }
+
+    return qb.getMany();
   }
 
   findOne(id: string): Promise<Location | null> {

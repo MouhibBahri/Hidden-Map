@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import '../models/location.dart';
+import '../models/location_category.dart';
 import '../providers/locations_provider.dart';
 import '../widgets/location_details_sheet.dart';
 import '../services/location_service.dart';
@@ -25,6 +26,7 @@ class _MapScreenState extends State<MapScreen> {
   bool _isSearching = false;
   Timer? _searchDebounceTimer;
   bool _isSearchLoading = false;
+  LocationCategory? _selectedCategory;
 
   @override
   void initState() {
@@ -89,7 +91,10 @@ class _MapScreenState extends State<MapScreen> {
       try {
         // Get token from shared preferences or auth provider
         final locationService = LocationService();
-        final results = await locationService.searchLocations(query);
+        final results = await locationService.searchLocations(
+          query,
+          category: _selectedCategory?.name,
+        );
         setState(() {
           _searchResults = results;
           _isSearching = true;
@@ -110,6 +115,7 @@ class _MapScreenState extends State<MapScreen> {
       LatLng(location.latitude, location.longitude),
       16,
     );
+    print('Navigating to location: ${location.name}\n Location details: ${location.toJson()}');
     _showLocationDetails(location);
     setState(() {
       _searchController.clear();
@@ -272,6 +278,48 @@ class _MapScreenState extends State<MapScreen> {
                             vertical: 12,
                           ),
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Category filter chips
+                    SizedBox(
+                      height: 40,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          const SizedBox(width: 8),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: ChoiceChip(
+                              label: const Text('All'),
+                              selected: _selectedCategory == null,
+                              onSelected: (_) {
+                                setState(() {
+                                  _selectedCategory = null;
+                                });
+                                if (_searchController.text.isNotEmpty) {
+                                  _searchLocations(_searchController.text);
+                                }
+                              },
+                            ),
+                          ),
+                          ...LocationCategory.values.map((cat) => Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                child: ChoiceChip(
+                                  label: Text(cat.displayName),
+                                  selected: _selectedCategory == cat,
+                                  onSelected: (sel) {
+                                    setState(() {
+                                      _selectedCategory = sel ? cat : null;
+                                    });
+                                    if (_searchController.text.isNotEmpty) {
+                                      _searchLocations(_searchController.text);
+                                    }
+                                  },
+                                ),
+                              )),
+                          const SizedBox(width: 8),
+                        ],
                       ),
                     ),
                     // Search results dropdown
