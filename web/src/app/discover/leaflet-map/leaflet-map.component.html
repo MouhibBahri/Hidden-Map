@@ -125,14 +125,14 @@
         <span class="text-2xl">👥</span>
         <h3 class="font-semibold text-gray-900">Total Users</h3>
       </div>
-      <p class="text-3xl font-bold text-purple-600">{{ locationsService.statistics.value()?.activeUsers | number }}</p>
+      <p class="text-3xl font-bold text-purple-600">{{ statistics().activeUsers | number }}</p>
     </div>
     <div class="p-6 bg-green-50 rounded-lg border border-green-200">
       <div class="flex items-center space-x-3 mb-2">
         <span class="text-2xl">⭐</span>
         <h3 class="font-semibold text-gray-900">Avg Rating</h3>
       </div>
-      <p class="text-3xl font-bold text-green-600">{{locationsService.statistics.value()?.averageRating | number:'1.1-1' }}</p>
+      <p class="text-3xl font-bold text-green-600">{{statistics().averageRating | number:'1.1-1' }}</p>
     </div>
   </div>
 </div>

@@ -93,12 +93,13 @@ export class LeafletMapComponent implements AfterViewInit {
   // Expose signals to template
   isLoading = computed(() => {
     const resourceLoading = this.locationsService.locations.isLoading();
-    const statsLoading=this.locationsService.statistics.isLoading();
+    const statsLoading = this.locationsService.statistics.isLoading();
     const viewportLoading = this.isLoadingViewport();
     return resourceLoading || statsLoading || viewportLoading;
   });
   error = this.locationsService.locations.error;
   locations = this.filteredLocations;
+  statistics = computed(() => this.locationsService.statistics.value() || { activeUsers: 0, averageRating: 0 });
 
   constructor() {
     effect(() => {

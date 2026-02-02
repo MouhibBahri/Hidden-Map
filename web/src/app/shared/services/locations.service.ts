@@ -46,6 +46,11 @@ export class LocationsService {
     this.statistics.reload();
   }
 
+  refreshAll() {
+    this.locations.reload();
+    this.statistics.reload();
+  }
+
   getLocations(): Observable<Location[]> {
     return this.http.get<Location[]>(this.apiUrl).pipe(
       retry({
