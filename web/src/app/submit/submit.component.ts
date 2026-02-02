@@ -80,7 +80,7 @@ export class SubmitComponent {
         this.scrollToTop();
         this.submitted.set(true);
         this.resetForm();
-        this.locationsService.locations.reload();
+        this.locationsService.refreshAll();
         setTimeout(() => this.submitted.set(false), 3000);
       },
       error: (err) => {

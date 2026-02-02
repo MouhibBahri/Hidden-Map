@@ -11,13 +11,15 @@ import {
   ElementRef,
   HostListener,
   ChangeDetectionStrategy,
+  DestroyRef,
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { toSignal, toObservable, rxResource } from '@angular/core/rxjs-interop';
+import { toSignal, toObservable, rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, map } from 'rxjs/operators';
 import { LocationsService } from '../../shared/services/locations.service';
 import { Location, LOCATION_CATEGORIES, LOCATION_CATEGORY_OPTIONS } from '../../shared/models/location.model';
+import { Statistics } from '../../shared/models/statistics.model';
 import { LocationDetailsComponent } from '../location-details/location-details.component';
 import { query } from 'express';
 
@@ -33,15 +35,16 @@ interface Bounds {
   imports: [CommonModule, LocationDetailsComponent, FormsModule],
   templateUrl: './leaflet-map.component.html',
   styleUrl: './leaflet-map.component.css',
-  //changeDetection: ChangeDetectionStrategy.OnPush,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LeafletMapComponent implements AfterViewInit {
   LOCATION_CATEGORIES = LOCATION_CATEGORIES;
   categoryOptions = LOCATION_CATEGORY_OPTIONS;
   
   private platformId = inject(PLATFORM_ID);
-  private locationsService = inject(LocationsService);
+  locationsService = inject(LocationsService);
   private ngZone = inject(NgZone);
+  private destroyRef = inject(DestroyRef);
 
   private map!: any;
   markers: any[] = [];
@@ -87,10 +90,12 @@ export class LeafletMapComponent implements AfterViewInit {
 
   isLoading = computed(() => {
     const resourceLoading = this.locationsService.locations.isLoading();
+    const statsLoading = this.locationsService.statistics.isLoading();
     const viewportLoading = this.isLoadingViewport();
-    return resourceLoading || viewportLoading;
+    return resourceLoading || statsLoading || viewportLoading;
   });
   error = this.locationsService.locations.error;
+  statistics = computed(() => this.locationsService.statistics.value() || { activeUsers: 0, averageRating: 0 });
 
   constructor() {
     effect(() => {
@@ -190,7 +195,7 @@ export class LeafletMapComponent implements AfterViewInit {
         currentBounds.maxLat,
         currentBounds.minLng,
         currentBounds.maxLng
-      )
+      ).pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (locations) => {
           // Merge with existing locations (avoid duplicates)
