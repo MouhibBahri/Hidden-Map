@@ -18,7 +18,7 @@ import { FormsModule } from '@angular/forms';
 import { toSignal, toObservable, rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, map } from 'rxjs/operators';
 import { LocationsService } from '../../shared/services/locations.service';
-import { Location, LOCATION_CATEGORIES } from '../../shared/models/location.model';
+import { Location, LOCATION_CATEGORIES, LOCATION_CATEGORY_OPTIONS } from '../../shared/models/location.model';
 import { Statistics } from '../../shared/models/statistics.model';
 import { LocationDetailsComponent } from '../location-details/location-details.component';
 import { query } from 'express';
@@ -39,6 +39,8 @@ interface Bounds {
 })
 export class LeafletMapComponent implements AfterViewInit {
   LOCATION_CATEGORIES = LOCATION_CATEGORIES;
+  categoryOptions = LOCATION_CATEGORY_OPTIONS;
+  
   private platformId = inject(PLATFORM_ID);
   locationsService = inject(LocationsService);
   private ngZone = inject(NgZone);
@@ -54,7 +56,7 @@ export class LeafletMapComponent implements AfterViewInit {
   private allLocations = signal<Location[]>([]);
   private isLoadingViewport = signal(false);
   private viewportBounds = signal<Bounds | null>(null);
-  private selectedCategory = signal<string | null>(null);
+  public selectedCategory = signal<string | null>(null);
 
   @ViewChild('searchContainer') searchContainer!: ElementRef;
   showDropdown = signal(false);
@@ -69,28 +71,23 @@ export class LeafletMapComponent implements AfterViewInit {
     this.debouncedSearch,
     this.selectedCategory
   );
-  // Grid-cell coverage tracking
   private cellSize = 0.05; // degrees (~5km)
   private loadedCells = signal<Set<string>>(new Set());
   private debounceTimer: any = null;
   private isInitialLoad = true;
 
-  // Computed filtered locations based on category and search
-  filteredLocations = computed(() => {
+  protected filteredLocations = computed(() => {
+    console.log('Computing filtered locations');
     const locations = this.allLocations();
-    let result = [...locations];
-
-    // Filter by category if selected
-    if (this.selectedCategory()) {
-      result = result.filter(
-        (loc) => loc.category.toLowerCase() === this.selectedCategory()?.toLowerCase()
-      );
+    const category = this.selectedCategory();
+    if (!category) {
+      return locations;
     }
-
-    return result;
+    return locations.filter(
+      (loc) => loc.category === category
+    );
   });
 
-  // Expose signals to template
   isLoading = computed(() => {
     const resourceLoading = this.locationsService.locations.isLoading();
     const statsLoading = this.locationsService.statistics.isLoading();
@@ -98,13 +95,12 @@ export class LeafletMapComponent implements AfterViewInit {
     return resourceLoading || statsLoading || viewportLoading;
   });
   error = this.locationsService.locations.error;
-  locations = this.filteredLocations;
   statistics = computed(() => this.locationsService.statistics.value() || { activeUsers: 0, averageRating: 0 });
 
   constructor() {
     effect(() => {
-      const locations = this.allLocations();
-      if (locations && locations.length > 0 && this.map) {
+      const locations = this.filteredLocations();
+      if (this.map) {
         this.updateMapMarkers();
       }
     });
@@ -264,7 +260,7 @@ export class LeafletMapComponent implements AfterViewInit {
         this.markers.forEach((marker) => this.map.removeLayer(marker));
         this.markers = [];
 
-        const _locations = this.locations();
+        const _locations = this.filteredLocations();
         if (!_locations || _locations.length === 0) {
           return;
         }
@@ -335,8 +331,8 @@ export class LeafletMapComponent implements AfterViewInit {
     console.log('Favorite status changed:', event);
   }
 
-  // Public methods for filtering (can be called from template if needed)
   setCategory(category: string | null) {
+    console.log('Setting category filter to:', category);
     this.selectedCategory.set(category);
   }
 
