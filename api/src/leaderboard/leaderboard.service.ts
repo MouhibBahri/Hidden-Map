@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User } from '../users/entities/user.entity';
+import { Repository, Not } from 'typeorm';
+import { User, UserRole } from '../users/entities/user.entity';
 
 @Injectable()
 export class LeaderboardService {
@@ -13,7 +13,10 @@ export class LeaderboardService {
   async getTopUsers(limit: number = 50) {
     return this.userRepository.find({
       select: ['id', 'name', 'email', 'avatarUrl', 'points'],
-      where: { isActive: true },
+      where: { 
+        isActive: true,
+        role: Not(UserRole.ADMIN), // Exclude admin users from leaderboard
+      },
       order: { points: 'DESC' },
       take: limit,
     });

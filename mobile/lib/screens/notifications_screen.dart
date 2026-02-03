@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -16,11 +17,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   NotificationResponse? _notificationResponse;
   bool _isLoading = true;
   String? _error;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _loadNotifications();
+    // Poll for new notifications every 30 seconds
+    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _loadNotifications();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadNotifications() async {
@@ -114,6 +126,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/'),
+        ),
         title: const Text('Notifications'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
@@ -135,18 +151,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     if (_error != null) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadNotifications,
-              child: const Text('Retry'),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(_error!, style: const TextStyle(color: Colors.red)),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _loadNotifications,
+                  child: const Text('Retry'),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       );
     }

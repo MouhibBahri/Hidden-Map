@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, interval } from 'rxjs';
-import { tap, switchMap, catchError } from 'rxjs/operators';
+import { Observable, interval } from 'rxjs';
+import { tap, switchMap, catchError, startWith } from 'rxjs/operators';
 import { Notification, NotificationResponse } from '../models/notification.model';
 import { API_ROUTES } from '../../config/api-routes.config';
 
@@ -20,9 +20,6 @@ export class NotificationsService {
   unreadCount = this.unreadCountSignal.asReadonly();
   
   hasUnread = computed(() => this.unreadCountSignal() > 0);
-
-  // Polling observable 
-  private pollingInterval$ = new BehaviorSubject<number>(30000); // 30s default
 
   /**
    * Get all notifications for current user
@@ -84,23 +81,17 @@ export class NotificationsService {
 
   /**
    * Start polling for new notifications
+   * Returns an observable that fetches notifications immediately and then every intervalMs
    */
-  startPolling(intervalMs: number = 30000) {
-    this.pollingInterval$.next(intervalMs);
-    
-    return this.pollingInterval$.pipe(
-      switchMap(interval$ => 
-        interval(interval$).pipe(
-          switchMap(() => this.getNotifications())
-        )
-      )
+  startPolling(intervalMs: number = 30000): Observable<NotificationResponse> {
+    return interval(intervalMs).pipe(
+      startWith(0), // Fetch immediately, then wait for interval
+      switchMap(() => this.getNotifications()),
+      catchError(error => {
+        console.error('Polling error:', error);
+        // Return empty but continue polling
+        return [];
+      })
     );
-  }
-
-  /**
-   * Stop polling
-   */
-  stopPolling() {
-    this.pollingInterval$.complete();
   }
 }

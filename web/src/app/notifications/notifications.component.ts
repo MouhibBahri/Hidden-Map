@@ -32,7 +32,6 @@ export class NotificationsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.subscription.unsubscribe(); // PDF Section 20.2 - cleanup
-    this.notificationsService.stopPolling();
   }
 
   loadNotifications() {
