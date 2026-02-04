@@ -31,7 +31,7 @@ export interface Location {
   id: string;
   name: string;
   description: string;
-  category: string;
+  category: LocationCategory;
   latitude: number;
   longitude: number;
   address?: string;
@@ -41,6 +41,7 @@ export interface Location {
   comments?: Comment[];
   averageRating?: number;
   isFavorite?: boolean;
+  submittedById?: string;
 }
 
 export interface LocationsResponse {
@@ -50,7 +51,19 @@ export interface LocationsResponse {
   limit: number;
 }
 
-export const LOCATION_CATEGORIES = {
+export enum LocationCategory {
+  CAFE = 'cafe',
+  ART = 'art',
+  PARK = 'park',
+  SHOP = 'shop',
+  RESTAURANT = 'restaurant',
+  MUSEUM = 'museum',
+  VIEWPOINT = 'viewpoint',
+  NIGHTLIFE = 'nightlife',
+  OTHER = 'other',
+}
+
+export const LOCATION_CATEGORIES: Record<LocationCategory, { label: string; color: string; icon: string }> = {
   cafe: { label: 'Cafe', color: '#8B4513', icon: '☕' },
   art: { label: 'Art', color: '#FF6B6B', icon: '🎨' },
   park: { label: 'Park', color: '#51CF66', icon: '🌳' },
@@ -61,3 +74,8 @@ export const LOCATION_CATEGORIES = {
   nightlife: { label: 'Nightlife', color: '#FF7675', icon: '🌙' },
   other: { label: 'Other', color: '#95A5A6', icon: '📍' },
 };
+
+export const LOCATION_CATEGORY_OPTIONS = Object.entries(LOCATION_CATEGORIES).map(([key, value]) => ({
+  key,
+  value,
+}));

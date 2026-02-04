@@ -2,11 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Location } from '../entities/location.entity';
 import { User, UserRole } from '../../users/entities/user.entity';
-import { Repository } from 'typeorm';
+import { Repository, Brackets } from 'typeorm';
 import { CreateLocationDto } from '../dto/create-location.dto';
 import { UpdateLocationDto } from '../dto/update-location.dto';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { NotificationType } from '../../notifications/entities/notification.entity';
+import { MediaFile } from '../../file/entities/file.entity';
+import { Rating } from '../../ratings/entities/rating.entity';
 
 @Injectable()
 export class LocationsService {
@@ -15,11 +17,51 @@ export class LocationsService {
     private readonly locationRepository: Repository<Location>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(MediaFile)
+    private readonly mediaFileRepository: Repository<MediaFile>,
+    @InjectRepository(Rating)
+    private readonly ratingRepository: Repository<Rating>,
     private readonly notificationsService: NotificationsService,
   ) {}
 
   findAll(): Promise<Location[]> {
     return this.locationRepository.find({ relations: ['photos'] });
+  }
+
+  findByBounds(
+    minLat: number,
+    maxLat: number,
+    minLng: number,
+    maxLng: number,
+  ): Promise<Location[]> {
+    return this.locationRepository
+      .createQueryBuilder('location')
+      .where('location.latitude BETWEEN :minLat AND :maxLat', { minLat, maxLat })
+      .andWhere('location.longitude BETWEEN :minLng AND :maxLng', { minLng, maxLng })
+      .leftJoinAndSelect('location.photos', 'photos')
+      .getMany();
+  }
+
+  search(query: string, category?: string): Promise<Location[]> {
+    const searchTerm = `%${query}%`;
+    const qb = this.locationRepository
+      .createQueryBuilder('location')
+      .leftJoinAndSelect('location.photos', 'photos')
+      .where(
+        new Brackets((qbWhere) => {
+          qbWhere
+            .where('location.name ILIKE :query', { query: searchTerm })
+            .orWhere('location.description ILIKE :query', { query: searchTerm })
+            .orWhere('location.address ILIKE :query', { query: searchTerm })
+            .orWhere('location.city ILIKE :query', { query: searchTerm });
+        }),
+      );
+
+    if (category) {
+      qb.andWhere('location.category = :category', { category });
+    }
+
+    return qb.getMany();
   }
 
   findOne(id: string): Promise<Location | null> {
@@ -30,12 +72,21 @@ export class LocationsService {
   }
 
   async create(locationData: CreateLocationDto, userId: string): Promise<Location> {
-    const location = this.locationRepository.create({
-      ...locationData,
-      submittedById: userId,
-    });
-    const savedLocation = await this.locationRepository.save(location);
 
+    const { photos, ...rest } = locationData;
+
+    let mediaFiles: MediaFile[] = [];
+    if (photos && photos.length > 0) {
+      mediaFiles = await this.mediaFileRepository.findByIds(photos);
+    }
+
+    const location = this.locationRepository.create({
+      ...rest,
+      submittedById: userId,
+      photos: mediaFiles,
+    });
+
+    const savedLocation = await this.locationRepository.save(location);
     // Notify all admins about new location submission
     const admins = await this.userRepository.find({
       where: { role: UserRole.ADMIN },
@@ -56,11 +107,36 @@ export class LocationsService {
     return savedLocation;
   }
 
-  update(id: string, locationData: UpdateLocationDto): Promise<Location> {
-    return this.locationRepository.save({ id, ...locationData });
+  async update(id: string, updateLocationDto: UpdateLocationDto) {
+    const { photos, ...locationData } = updateLocationDto;
+
+    let mediaFiles: MediaFile[] = [];
+    if (photos && photos.length > 0) {
+      mediaFiles = await this.mediaFileRepository.findByIds(photos);
+    }
+
+    return this.locationRepository.save({
+      id,
+      ...locationData,
+      photos: mediaFiles,
+    });
   }
 
   async remove(id: string): Promise<void> {
     await this.locationRepository.softDelete(id);
+  }
+
+  async getStatistics(): Promise<{ activeUsers: number; averageRating: number }> {
+    const totalUsers = await this.userRepository.count();
+
+    const ratings = await this.ratingRepository.find();
+    const averageRating = ratings.length > 0
+      ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
+      : 0;
+
+    return {
+      activeUsers: totalUsers,
+      averageRating: parseFloat(averageRating.toFixed(1)),
+    };
   }
 }

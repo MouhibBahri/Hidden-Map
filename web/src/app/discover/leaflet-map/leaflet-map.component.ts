@@ -4,39 +4,103 @@ import {
   PLATFORM_ID,
   inject,
   effect,
+  signal,
+  computed,
+  NgZone,
+  ViewChild,
+  ElementRef,
+  HostListener,
+  ChangeDetectionStrategy,
+  DestroyRef,
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { toSignal, toObservable, rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { debounceTime, map } from 'rxjs/operators';
 import { LocationsService } from '../../shared/services/locations.service';
-import { Location, LOCATION_CATEGORIES } from '../../shared/models/location.model';
+import { Location, LOCATION_CATEGORIES, LOCATION_CATEGORY_OPTIONS } from '../../shared/models/location.model';
+import { Statistics } from '../../shared/models/statistics.model';
 import { LocationDetailsComponent } from '../location-details/location-details.component';
+import { query } from 'express';
+
+interface Bounds {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+}
 
 @Component({
   selector: 'app-leaflet-map',
-  imports: [CommonModule, LocationDetailsComponent],
+  imports: [CommonModule, LocationDetailsComponent, FormsModule],
   templateUrl: './leaflet-map.component.html',
   styleUrl: './leaflet-map.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LeafletMapComponent implements AfterViewInit {
+  LOCATION_CATEGORIES = LOCATION_CATEGORIES;
+  categoryOptions = LOCATION_CATEGORY_OPTIONS;
+  
   private platformId = inject(PLATFORM_ID);
-  private locationsService = inject(LocationsService);
+  locationsService = inject(LocationsService);
+  private ngZone = inject(NgZone);
+  private destroyRef = inject(DestroyRef);
 
   private map!: any;
   markers: any[] = [];
 
-  isDetailsOpen = false;
-  selectedLocation: Location | null = null;
+  // Signals
+  selectedLocation = signal<Location | null>(null);
+  isDetailsOpen = computed(() => this.selectedLocation() !== null);
 
-  locationsResource = this.locationsService.locations;
+  private allLocations = signal<Location[]>([]);
+  private isLoadingViewport = signal(false);
+  private viewportBounds = signal<Bounds | null>(null);
+  public selectedCategory = signal<string | null>(null);
 
-  // Expose resource signals to template
-  isLoading = this.locationsResource.isLoading;
-  error = this.locationsResource.error;
-  locations = this.locationsResource.value;
+  @ViewChild('searchContainer') searchContainer!: ElementRef;
+  showDropdown = signal(false);
+
+  searchQuery = signal<string>('');
+  debouncedSearch = toSignal(
+    toObservable(this.searchQuery).pipe(debounceTime(500)),
+    { initialValue: '' }
+  );
+
+  searchResults = this.locationsService.searchLocations(
+    this.debouncedSearch,
+    this.selectedCategory
+  );
+  private cellSize = 0.05; // degrees (~5km)
+  private loadedCells = signal<Set<string>>(new Set());
+  private debounceTimer: any = null;
+  private isInitialLoad = true;
+
+  protected filteredLocations = computed(() => {
+    console.log('Computing filtered locations');
+    const locations = this.allLocations();
+    const category = this.selectedCategory();
+    if (!category) {
+      return locations;
+    }
+    return locations.filter(
+      (loc) => loc.category === category
+    );
+  });
+
+  isLoading = computed(() => {
+    const resourceLoading = this.locationsService.locations.isLoading();
+    const statsLoading = this.locationsService.statistics.isLoading();
+    const viewportLoading = this.isLoadingViewport();
+    return resourceLoading || statsLoading || viewportLoading;
+  });
+  error = this.locationsService.locations.error;
+  statistics = computed(() => this.locationsService.statistics.value() || { activeUsers: 0, averageRating: 0 });
 
   constructor() {
     effect(() => {
-      const locations = this.locationsResource.value();
-      if (locations && locations.length > 0 && this.map) {
+      const locations = this.filteredLocations();
+      if (this.map) {
         this.updateMapMarkers();
       }
     });
@@ -53,94 +117,254 @@ export class LeafletMapComponent implements AfterViewInit {
   }
 
   private initMap() {
-    import('leaflet').then((L) => {
-      const baseMapURL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-      this.map = L.map('map', {
-        zoom: 12,
-        center: [36.842836, 10.197503], // Default center (Tunis)
-        zoomControl: true,
-        scrollWheelZoom: true,
+    this.ngZone.runOutsideAngular(() => {
+      import('leaflet').then((L) => {
+        const baseMapURL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+        this.map = L.map('map', {
+          zoom: 12,
+          center: [36.842836, 10.197503], // Default center (Tunis)
+          zoomControl: true,
+          scrollWheelZoom: true,
+        });
+
+        L.tileLayer(baseMapURL, {
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 19,
+        }).addTo(this.map);
+
+        // Load initial viewport
+        this.ngZone.run(() => {
+          this.isLoadingViewport.set(true);
+          this.loadViewportLocations();
+        });
+
+        // Listen to map movement
+        this.map.on('moveend', () => this.onMapMoved());
       });
-
-      L.tileLayer(baseMapURL, {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19,
-      }).addTo(this.map);
-
-      this.updateMapMarkers();
     });
   }
 
-  private updateMapMarkers() {
-    import('leaflet').then((L) => {
-      // Clear existing markers
-      this.markers.forEach((marker) => this.map.removeLayer(marker));
-      this.markers = [];
+  private onMapMoved() {
+    // Debounce viewport loading
+    clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(() => {
+      this.ngZone.run(() => {
+        this.loadViewportLocations();
+      });
+    }, 500);
+  }
 
-      const _locations = this.locations();
-      if (!_locations || _locations.length === 0) {
-        return;
+  private loadViewportLocations() {
+    if (!this.map) return;
+
+    const bounds = this.map.getBounds();
+    const bufferedBounds = this.addBuffer(bounds, 0.3); // 30% buffer
+
+    this.viewportBounds.set({
+      minLat: bufferedBounds.getSouth(),
+      maxLat: bufferedBounds.getNorth(),
+      minLng: bufferedBounds.getWest(),
+      maxLng: bufferedBounds.getEast(),
+    });
+
+    const currentBounds = this.viewportBounds();
+    if (!currentBounds) return;
+
+    // Check if all cells in buffered bounds are already loaded
+    const requiredCells = this.cellsForBounds(
+      currentBounds.minLat,
+      currentBounds.maxLat,
+      currentBounds.minLng,
+      currentBounds.maxLng
+    );
+
+    const loadedCellsSet = this.loadedCells();
+    const allLoaded = Array.from(requiredCells).every((cell) =>
+      loadedCellsSet.has(cell)
+    );
+
+    if (allLoaded) {
+      return; // All cells already loaded
+    }
+
+    // Load locations for the buffered bounds
+    this.locationsService
+      .getLocationsByBounds(
+        currentBounds.minLat,
+        currentBounds.maxLat,
+        currentBounds.minLng,
+        currentBounds.maxLng
+      ).pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (locations) => {
+          // Merge with existing locations (avoid duplicates)
+          const existingIds = new Set(this.allLocations().map((l) => l.id));
+          const newLocations = locations.filter(
+            (l) => !existingIds.has(l.id)
+          );
+          this.allLocations.set([...this.allLocations(), ...newLocations]);
+
+          // Mark cells as loaded
+          const newLoadedCells = new Set(loadedCellsSet);
+          requiredCells.forEach((cell) => newLoadedCells.add(cell));
+          this.loadedCells.set(newLoadedCells);
+
+          this.isLoadingViewport.set(false);
+        },
+        error: (err) => {
+          console.error('Failed to load viewport locations:', err);
+          this.isLoadingViewport.set(false);
+        },
+      });
+  }
+
+  private cellsForBounds(
+    minLat: number,
+    maxLat: number,
+    minLng: number,
+    maxLng: number
+  ): Set<string> {
+    const cells = new Set<string>();
+    const latStart = Math.floor(minLat / this.cellSize);
+    const latEnd = Math.floor(maxLat / this.cellSize);
+    const lngStart = Math.floor(minLng / this.cellSize);
+    const lngEnd = Math.floor(maxLng / this.cellSize);
+
+    for (let i = latStart; i <= latEnd; i++) {
+      for (let j = lngStart; j <= lngEnd; j++) {
+        cells.add(`${i}:${j}`);
       }
+    }
+    return cells;
+  }
 
-      // Add new markers
-      _locations.forEach((location) => {
-        const categoryInfo =
-          LOCATION_CATEGORIES[
-            location.category.toLowerCase() as keyof typeof LOCATION_CATEGORIES
-          ] || LOCATION_CATEGORIES.other;
+  private addBuffer(bounds: any, percentage: number) {
+    const latDelta = bounds.getNorth() - bounds.getSouth();
+    const lngDelta = bounds.getEast() - bounds.getWest();
+    const latBuffer = latDelta * percentage;
+    const lngBuffer = lngDelta * percentage;
 
-        // Create custom icon
-        const markerIcon = L.divIcon({
-          html: `
-            <div class="custom-marker" style="background-color: ${categoryInfo.color}; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); cursor: pointer; font-size: 20px;">
-              ${categoryInfo.icon}
-            </div>
-          `,
-          iconSize: [40, 40],
-          iconAnchor: [20, 20],
-          popupAnchor: [0, -20],
-          className: 'custom-marker-icon',
+    return {
+      getNorth: () => bounds.getNorth() + latBuffer,
+      getSouth: () => bounds.getSouth() - latBuffer,
+      getEast: () => bounds.getEast() + lngBuffer,
+      getWest: () => bounds.getWest() - lngBuffer,
+    };
+  }
+
+  private updateMapMarkers() {
+    this.ngZone.runOutsideAngular(() => {
+      import('leaflet').then((L) => {
+        // Clear existing markers
+        this.markers.forEach((marker) => this.map.removeLayer(marker));
+        this.markers = [];
+
+        const _locations = this.filteredLocations();
+        if (!_locations || _locations.length === 0) {
+          return;
+        }
+
+        // Add new markers
+        _locations.forEach((location) => {
+          const categoryInfo =
+            LOCATION_CATEGORIES[
+              location.category.toLowerCase() as keyof typeof LOCATION_CATEGORIES
+            ] || LOCATION_CATEGORIES['other'];
+
+          // Create custom icon
+          const markerIcon = L.divIcon({
+            html: `
+              <div class="custom-marker" style="background-color: ${categoryInfo.color}; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); cursor: pointer; font-size: 20px;">
+                ${categoryInfo.icon}
+              </div>
+            `,
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
+            popupAnchor: [0, -20],
+            className: 'custom-marker-icon',
+          });
+
+          const marker = L.marker([location.latitude, location.longitude], {
+            icon: markerIcon,
+          })
+            .addTo(this.map)
+            .on('click', () =>
+              this.ngZone.run(() => this.openLocationDetails(location))
+            );
+
+          this.markers.push(marker);
         });
 
-        const marker = L.marker([location.latitude, location.longitude], {
-          icon: markerIcon,
-        })
-          .addTo(this.map)
-          .on('click', () => this.openLocationDetails(location));
-
-        this.markers.push(marker);
+        // Only fit bounds on initial load
+        if (this.isInitialLoad) {
+          this.centerMapOnMarkers();
+          this.isInitialLoad = false;
+        }
       });
-
-      this.centerMapOnMarkers();
     });
   }
 
   private centerMapOnMarkers() {
     if (this.map && this.markers.length > 0) {
-      import('leaflet').then((L) => {
-        const bounds = L.latLngBounds(
-          this.markers.map((marker) => marker.getLatLng())
-        );
-        this.map.fitBounds(bounds, { padding: [50, 50] });
+      this.ngZone.runOutsideAngular(() => {
+        import('leaflet').then((L) => {
+          const bounds = L.latLngBounds(
+            this.markers.map((marker) => marker.getLatLng())
+          );
+          this.map.fitBounds(bounds, { padding: [50, 50] });
+        });
       });
     }
   }
 
   openLocationDetails(location: Location) {
-    this.selectedLocation = location;
-    this.isDetailsOpen = true;
+    this.selectedLocation.set(location);
   }
 
   closeLocationDetails() {
-    this.isDetailsOpen = false;
-    setTimeout(() => {
-      this.selectedLocation = null;
-    }, 300);
+    this.selectedLocation.set(null);
   }
 
   onFavoriteChanged(event: { locationId: string; isFavorite: boolean }) {
     // Optional: You could update the marker appearance or show a notification
     console.log('Favorite status changed:', event);
+  }
+
+  setCategory(category: string | null) {
+    console.log('Setting category filter to:', category);
+    this.selectedCategory.set(category);
+  }
+
+  setSearchQuery(query: string) {
+    this.searchQuery.set(query);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onClick(event: MouseEvent) {
+    if (this.searchContainer && !this.searchContainer.nativeElement.contains(event.target)) {
+      this.showDropdown.set(false);
+    }
+  }
+
+  onSearchFocus() {
+    this.showDropdown.set(true);
+  }
+
+  onSearchInput(value: string) {
+    this.searchQuery.set(value);
+  }
+
+  onSearchResultClick(location: Location) {
+    if (this.map) {
+      this.map.flyTo([location.latitude, location.longitude], 16, {
+        duration: 1.5,
+      });
+    }
+
+    setTimeout(() => {
+      this.openLocationDetails(location);
+    }, 1500);
+    this.searchQuery.set(''); 
   }
 }

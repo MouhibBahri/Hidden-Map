@@ -1,10 +1,14 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:mobile/services/file_service.dart';
 import 'package:provider/provider.dart';
 import '../models/location.dart';
-import '../models/photo.dart';
 import '../models/location_category.dart';
+import '../models/media_file.dart';
 import '../providers/locations_provider.dart';
 import '../providers/auth_provider.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class SubmitScreen extends StatefulWidget {
   const SubmitScreen({super.key});
@@ -21,11 +25,13 @@ class _SubmitScreenState extends State<SubmitScreen> {
   final _longitudeController = TextEditingController();
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
-  final _photoUrlController = TextEditingController();
-  final _photoCaptionController = TextEditingController();
+  final List<XFile> _selectedImages = [];
+  final List<MediaFile> _uploadedFiles = [];
+  final ImagePicker _picker = ImagePicker();
 
   LocationCategory _selectedCategory = LocationCategory.other;
   bool _isSubmitting = false;
+  bool _isUploadingImages = false;
   bool _submitted = false;
 
   @override
@@ -36,14 +42,84 @@ class _SubmitScreenState extends State<SubmitScreen> {
     _longitudeController.dispose();
     _addressController.dispose();
     _cityController.dispose();
-    _photoUrlController.dispose();
-    _photoCaptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImages() async {
+    final List<XFile> picked = await _picker.pickMultiImage();
+    if (picked.isEmpty) return;
+    setState(() => _selectedImages.addAll(picked));
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (!authProvider.isAuthenticated) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please login to upload photos'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      setState(() => _selectedImages.removeRange(_selectedImages.length - picked.length, _selectedImages.length));
+      return;
+    }
+
+    setState(() => _isUploadingImages = true);
+    final fileService = FileService(token: authProvider.token);
+
+    try {
+      for (final file in picked) {
+        final mediaFile = await fileService.uploadFile(file);
+        if (mounted) {
+          setState(() => _uploadedFiles.add(mediaFile));
+        }
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Photos uploaded successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload photos: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      // Remove the selected images if upload fails
+      setState(() {
+        for (final file in picked) {
+          _selectedImages.remove(file);
+        }
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingImages = false);
+      }
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+      _uploadedFiles.removeAt(index);
+    });
   }
 
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_uploadedFiles.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please upload at least one image')),
+      );
+      return;
+    }
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     if (!authProvider.isAuthenticated) {
       if (mounted) {
@@ -69,16 +145,8 @@ class _SubmitScreenState extends State<SubmitScreen> {
         longitude: double.parse(_longitudeController.text),
         address: _addressController.text,
         city: _cityController.text,
-        photos: [
-          Photo(
-            id: '',
-            url: _photoUrlController.text,
-            thumbnailUrl: _photoUrlController.text,
-            caption: _photoCaptionController.text.isEmpty
-                ? null
-                : _photoCaptionController.text,
-          ),
-        ],
+        photos: _uploadedFiles,
+        submittedById: authProvider.currentUser!.id,
       );
 
       await context.read<LocationsProvider>().addLocation(location);
@@ -107,9 +175,9 @@ class _SubmitScreenState extends State<SubmitScreen> {
           _longitudeController.clear();
           _addressController.clear();
           _cityController.clear();
-          _photoUrlController.clear();
-          _photoCaptionController.clear();
           _selectedCategory = LocationCategory.other;
+          _selectedImages.clear();
+          _uploadedFiles.clear();
         }
       });
     } catch (e) {
@@ -279,24 +347,143 @@ class _SubmitScreenState extends State<SubmitScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              _buildTextField(
-                controller: _photoUrlController,
-                label: 'Photo URL',
-                icon: Icons.photo,
-                validator: (val) {
-                  if (val == null || val.isEmpty)
-                    return 'Photo URL is required';
-                  if (!val.startsWith('http')) return 'Must be a valid URL';
-                  return null;
-                },
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Column(
+                  children: [
+                    if (_uploadedFiles.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '${_uploadedFiles.length} photo(s) uploaded',
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                TextButton.icon(
+                                  onPressed: _pickImages,
+                                  icon: const Icon(
+                                    Icons.add_photo_alternate,
+                                    size: 20,
+                                  ),
+                                  label: const Text('Add more'),
+                                ),
+                              ],
+                            ),
+                            if (_isUploadingImages)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Row(
+                                  children: [
+                                    const SizedBox(
+                                      height: 16,
+                                      width: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text('Uploading photos...'),
+                                  ],
+                                ),
+                              ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              height: 120,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _selectedImages.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 8),
+                                itemBuilder: (context, index) {
+                                  final file = _selectedImages[index];
+                                  return Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: kIsWeb
+                                            ? Image.network(
+                                                file.path,
+                                                width: 120,
+                                                height: 120,
+                                                fit: BoxFit.cover,
+                                              )
+                                            : Image.file(
+                                                File(file.path),
+                                                width: 120,
+                                                height: 120,
+                                                fit: BoxFit.cover,
+                                              ),
+                                      ),
+                                      Positioned(
+                                        top: -4,
+                                        right: -4,
+                                        child: IconButton(
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(
+                                            minWidth: 28,
+                                            minHeight: 28,
+                                          ),
+                                          icon: const Icon(
+                                            Icons.close,
+                                            color: Colors.red,
+                                            size: 20,
+                                          ),
+                                          style: IconButton.styleFrom(
+                                            backgroundColor: Colors.white,
+                                          ),
+                                          onPressed: () => _removeImage(index),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (_isUploadingImages)
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            const SizedBox(
+                              height: 40,
+                              width: 40,
+                              child: CircularProgressIndicator(),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text('Uploading photos...'),
+                          ],
+                        ),
+                      )
+                    else
+                      ListTile(
+                        leading: const Icon(
+                          Icons.add_photo_alternate,
+                          size: 40,
+                          color: Colors.grey,
+                        ),
+                        title: const Text('Add Photos'),
+                        subtitle: const Text(
+                          'Tap to select one or more from gallery',
+                        ),
+                        onTap: _pickImages,
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
-              _buildTextField(
-                controller: _photoCaptionController,
-                label: 'Photo Caption (Optional)',
-                icon: Icons.text_fields,
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _isSubmitting ? null : _submitForm,
                 style: ElevatedButton.styleFrom(

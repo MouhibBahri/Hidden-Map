@@ -1,6 +1,7 @@
-import { Injectable, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable, Signal, inject, signal } from '@angular/core';
+import { HttpClient, httpResource, HttpResourceRef } from '@angular/common/http';
 import { Location } from '../models/location.model';
+import { Statistics } from '../models/statistics.model';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { retry, catchError } from 'rxjs/operators';
 import { of, Observable } from 'rxjs';
@@ -24,13 +25,30 @@ export class LocationsService {
         catchError((error) => {
           console.error('Failed to load locations:', error);
           return of([]);
-        })
+        }),
+      ),
+  });
+
+  statistics = rxResource({
+    loader: () =>
+      this.http.get<Statistics>(API_ROUTES.locations.statistics).pipe(
+        retry({ count: 3, delay: 1000 }),
+        catchError((error) => {
+          console.error('Failed to load statistics:', error);
+          return of({ activeUsers: 0, averageRating: 0 });
+        }),
       ),
   });
 
   retry() {
     this.retryCount.update((count) => count + 1);
     this.locations.reload();
+    this.statistics.reload();
+  }
+
+  refreshAll() {
+    this.locations.reload();
+    this.statistics.reload();
   }
 
   getLocations(): Observable<Location[]> {
@@ -42,8 +60,55 @@ export class LocationsService {
       catchError((error) => {
         console.error('Failed to load locations:', error);
         return of([]);
-      })
+      }),
     );
+  }
+
+  getLocationsByBounds(
+    minLat: number,
+    maxLat: number,
+    minLng: number,
+    maxLng: number,
+  ): Observable<Location[]> {
+    return this.http
+      .get<Location[]>(this.apiUrl, {
+        params: {
+          minLat: minLat.toString(),
+          maxLat: maxLat.toString(),
+          minLng: minLng.toString(),
+          maxLng: maxLng.toString(),
+        },
+      })
+      .pipe(
+        retry({
+          count: 3,
+          delay: 1000,
+        }),
+        catchError((error) => {
+          console.error('Failed to load locations by bounds:', error);
+          return of([]);
+        }),
+      );
+  }
+
+  searchLocations(
+    query: Signal<string>,
+    category: Signal<string | null>,
+  ): HttpResourceRef<Location[] | undefined> {
+    return httpResource<Location[]>(() => {
+      const q = query();
+      const cat = category();
+
+      const params: Record<string, string> = { query: q };
+      if (cat) {
+        params['category'] = cat;
+      }
+
+      return {
+        url: `${API_ROUTES.locations.search}`,
+        params: params,
+      };
+    });
   }
 
   constructor() {}
