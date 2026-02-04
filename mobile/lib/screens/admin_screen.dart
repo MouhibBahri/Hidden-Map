@@ -140,6 +140,10 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/'),
+        ),
         title: const Text('Pending Locations'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
@@ -160,41 +164,46 @@ class _AdminScreenState extends State<AdminScreen> {
           _error!.contains('Authentication');
 
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isAuthError ? Icons.lock : Icons.error_outline,
-              size: 64,
-              color: isAuthError ? Colors.orange : Colors.red,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isAuthError ? Icons.lock : Icons.error_outline,
+                  size: 64,
+                  color: isAuthError ? Colors.orange : Colors.red,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _error!,
+                  style: TextStyle(
+                    color: isAuthError ? Colors.orange : Colors.red,
+                    fontSize: 16,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                if (isAuthError && !authProvider.isAuthenticated)
+                  ElevatedButton.icon(
+                    onPressed: () => context.push('/login'),
+                    icon: const Icon(Icons.login),
+                    label: const Text('Login'),
+                  )
+                else if (isAuthError)
+                  ElevatedButton(
+                    onPressed: () => context.pop(),
+                    child: const Text('Go Back'),
+                  )
+                else
+                  ElevatedButton(
+                    onPressed: _checkAdminAndLoad,
+                    child: const Text('Retry'),
+                  ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: TextStyle(
-                color: isAuthError ? Colors.orange : Colors.red,
-                fontSize: 16,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            if (isAuthError && !authProvider.isAuthenticated)
-              ElevatedButton.icon(
-                onPressed: () => context.push('/login'),
-                icon: const Icon(Icons.login),
-                label: const Text('Login'),
-              )
-            else if (isAuthError)
-              ElevatedButton(
-                onPressed: () => context.pop(),
-                child: const Text('Go Back'),
-              )
-            else
-              ElevatedButton(
-                onPressed: _checkAdminAndLoad,
-                child: const Text('Retry'),
-              ),
-          ],
+          ),
         ),
       );
     }

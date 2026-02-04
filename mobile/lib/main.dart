@@ -3,8 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'providers/locations_provider.dart';
 import 'providers/auth_provider.dart';
+
+import 'providers/notifications_provider.dart';
+
 import 'services/follower_service.dart';
 import 'services/user_service.dart';
+
 import 'screens/map_screen.dart';
 import 'screens/submit_screen.dart';
 import 'screens/leaderboard_screen.dart';
@@ -36,6 +40,14 @@ class MyApp extends StatelessWidget {
             return locationsProvider;
           },
         ),
+
+        ChangeNotifierProxyProvider<AuthProvider, NotificationsProvider>(
+          create: (_) => NotificationsProvider(),
+          update: (_, authProvider, notificationsProvider) {
+            notificationsProvider!.setToken(authProvider.token, authProvider.isAuthenticated);
+            return notificationsProvider;
+          },
+
         // Add UserService - provides user data fetching capabilities
         ProxyProvider<AuthProvider, UserService>(
           update: (_, authProvider, __) =>
@@ -45,6 +57,7 @@ class MyApp extends StatelessWidget {
         ProxyProvider<AuthProvider, FollowerService>(
           update: (_, authProvider, __) =>
               FollowerService(getToken: () => authProvider.token),
+
         ),
       ],
       child: MaterialApp.router(
@@ -163,10 +176,45 @@ class ScaffoldWithNavBar extends StatelessWidget {
             ),
           // Notifications button
           if (authProvider.isAuthenticated)
-            IconButton(
-              icon: const Icon(Icons.notifications),
-              onPressed: () => context.push('/notifications'),
-              tooltip: 'Notifications',
+            Consumer<NotificationsProvider>(
+              builder: (context, notifProvider, child) {
+                final unreadCount = notifProvider.unreadCount;
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.notifications),
+                      onPressed: () => context.push('/notifications'),
+                      tooltip: 'Notifications',
+                    ),
+                    if (unreadCount > 0)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            unreadCount > 99 ? '99+' : unreadCount.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           // Admin button - only show for admin users
           if (authProvider.isAdmin)
