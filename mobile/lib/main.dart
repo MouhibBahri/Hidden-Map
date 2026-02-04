@@ -47,6 +47,7 @@ class MyApp extends StatelessWidget {
             notificationsProvider!.setToken(authProvider.token, authProvider.isAuthenticated);
             return notificationsProvider;
           },
+        ),
 
         // Add UserService - provides user data fetching capabilities
         ProxyProvider<AuthProvider, UserService>(
