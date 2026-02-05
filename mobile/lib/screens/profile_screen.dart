@@ -38,9 +38,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final authProvider = context.read<AuthProvider>();
       final currentUser = authProvider.currentUser;
       final userService = context.read<UserService>();
+      final followerService = context.read<FollowerService>();
 
       if (widget.userId == null) {
-        final (user, isFollowed) = await userService.getUserProfile(
+        final (user, _) = await userService.getUserProfile(
           currentUser!.id,
           currentUserId: currentUser?.id,
         );
@@ -51,14 +52,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       } else {
         // Load user profile - returns (User, isFollowed)
-        final (user, isFollowed) = await userService.getUserProfile(
+        final (user, _) = await userService.getUserProfile(
           widget.userId!,
           currentUserId: currentUser?.id,
+        );
+        final isfollowed = await followerService.isFollowing(
+          widget.userId!,
+          currentUser!.id,
         );
 
         setState(() {
           _profileUser = user;
-          _isFollowing = isFollowed; // Backend tells us if we're following
+          _isFollowing = isfollowed; // Backend tells us if we're following
           _isLoading = false;
         });
       }

@@ -138,7 +138,7 @@ class FollowerService {
   ///
   /// GET /users/:userId/follow/is-following/:followerUserId
   /// Returns true if followerUserId is following userId
-  Future<bool> isFollowing(String followerUserId, String userId) async {
+  Future<bool> isFollowing(String userId, String followerUserId) async {
     try {
       final response = await _dio.get(
         '/users/$userId/follow/is-following/$followerUserId',
@@ -155,6 +155,8 @@ class FollowerService {
         }
       } else if (response.data is bool) {
         return response.data as bool;
+      } else if (response.data is String) {
+        return response.data.toLowerCase() == 'true';
       }
 
       return false;
