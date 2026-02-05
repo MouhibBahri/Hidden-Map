@@ -29,7 +29,7 @@ export class LoginComponent {
       .pipe(
         switchMap((response: AuthResponseDto) => {
           localStorage.setItem(ACCESS_TOKEN, response.access_token);
-          return this.authService.getProfile();
+          return this.authService.fetchAndStoreProfile();
         })
       )
       .subscribe({

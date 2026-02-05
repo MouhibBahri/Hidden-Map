@@ -8,6 +8,7 @@ import { UpdateLocationDto } from '../dto/update-location.dto';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { NotificationType } from '../../notifications/entities/notification.entity';
 import { MediaFile } from '../../file/entities/file.entity';
+import { Rating } from '../../ratings/entities/rating.entity';
 
 @Injectable()
 export class LocationsService {
@@ -18,6 +19,8 @@ export class LocationsService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(MediaFile)
     private readonly mediaFileRepository: Repository<MediaFile>,
+    @InjectRepository(Rating)
+    private readonly ratingRepository: Repository<Rating>,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -121,5 +124,19 @@ export class LocationsService {
 
   async remove(id: string): Promise<void> {
     await this.locationRepository.softDelete(id);
+  }
+
+  async getStatistics(): Promise<{ activeUsers: number; averageRating: number }> {
+    const totalUsers = await this.userRepository.count();
+
+    const ratings = await this.ratingRepository.find();
+    const averageRating = ratings.length > 0
+      ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
+      : 0;
+
+    return {
+      activeUsers: totalUsers,
+      averageRating: parseFloat(averageRating.toFixed(1)),
+    };
   }
 }

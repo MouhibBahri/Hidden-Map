@@ -76,6 +76,17 @@ export class LocationsController {
   }
 
   @Public()
+  @ApiOperation({ summary: 'Get global statistics' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns global statistics including total number of users and average rating',
+  })
+  @Get('statistics')
+  getStatistics() {
+    return this.locationsService.getStatistics();
+  }
+
+  @Public()
   @ApiOperation({ summary: 'Get location by ID' })
   @ApiParam({ name: 'id', description: 'Location UUID' })
   @ApiResponse({

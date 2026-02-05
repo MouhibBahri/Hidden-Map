@@ -4,6 +4,7 @@ import { Location, Comment, Rating, LOCATION_CATEGORIES } from '../../shared/mod
 import { RatingsService } from '../../shared/services/ratings.service';
 import { CommentsService } from '../../shared/services/comments.service';
 import { FavoritesService } from '../../shared/services/favorites.service';
+import { LocationsService } from '../../shared/services/locations.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { Subject, takeUntil, catchError, of, forkJoin } from 'rxjs';
 import { ApiUrlPipe } from '../../shared/pipes/api-url.pipe';
@@ -30,6 +31,7 @@ export class LocationDetailsComponent implements OnInit, OnChanges, OnDestroy {
   ratingsService = inject(RatingsService);
   commentsService = inject(CommentsService);
   favoritesService = inject(FavoritesService);
+  locationsService = inject(LocationsService);
   userService = inject(UsersService);
   private authService = inject(AuthService);
   private destroy$ = new Subject<void>();
@@ -133,6 +135,7 @@ export class LocationDetailsComponent implements OnInit, OnChanges, OnDestroy {
       .subscribe(() => {
         this.userRating.set(rating);
         this.ratingsService.reloadRatings();
+        this.locationsService.refreshAll();
       });
   }
 
